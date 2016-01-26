@@ -36,7 +36,12 @@ class Parser extends JavaTokenParsers {
 
   private def par = "(" ~> expr <~ ")"
 
-  private def term = value | par
+  private def fCall = fnName ~ "(" ~ repsep(expr, ",") ~ ")" ^^ {
+    case name ~ _ ~ args ~ _ =>
+      FnCall(name, args)
+  }
+
+  private def term = fCall | value | par
 
   // unary
   private def unary1 = term
@@ -63,13 +68,13 @@ class Parser extends JavaTokenParsers {
   val echo = "echo" ~> "(" ~> expr <~ ")" ^^ ASTNode.Echo
 
 
-  val statement = (echo | valDefinition | assignment) <~ ";"
+  val statement = (echo | valDefinition | assignment | expr) <~ ";"
 
   val arg = varName ~ ":" ~ typeName ^^ {
     case varName ~ _ ~ typeName => FnDefinition.Arg(varName, typeName)
   }
 
-  val fnSignature = "fn" ~> fnName ~ "(" ~ rep(arg) ~ ")" ~ ":" ~ typeName ^^ {
+  val fnSignature = "fn" ~> fnName ~ "(" ~ repsep(arg, ",") ~ ")" ~ ":" ~ typeName ^^ {
     case fnName ~ _ ~ args ~ _ ~ _ ~ retType =>
       FnDefinition.Signature(fnName, retType, args)
   }

@@ -33,6 +33,8 @@ object ASTNode {
 
   case class VarDefinition(name: String) extends Statement
 
+  case class FnCall(name: String, args: Seq[Expression]) extends Expression
+
   case class FnDefinition(signature: FnDefinition.Signature, code: List[Statement]) extends ASTNode with Definition
 
   object FnDefinition {
