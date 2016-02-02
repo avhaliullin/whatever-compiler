@@ -19,9 +19,11 @@ class Parser extends JavaTokenParsers {
 
   private val fnName = literal
 
-  private val intConst: Parser[Int] = """-?[0-9]+""".r ^^ (_.toInt)
+  private val intConst = ("""-?[0-9]+""".r ^^ (_.toInt)) ^^ IntConst
 
-  private val const = intConst ^^ ASTNode.IntConst
+  private val boolConst = ("true" ^^ (_ => true) | "false" ^^ (_ => false)) ^^ BoolConst
+
+  private val const = intConst | boolConst
 
   private def binOp(arg: ~[Expression, List[~[String, Expression]]]): Expression = {
     val ~(zero, rest) = arg
@@ -32,7 +34,7 @@ class Parser extends JavaTokenParsers {
     }
   }
 
-  private def value: Parser[Expression] = varName ^^ Variable | const
+  private def value: Parser[Expression] = const | varName ^^ Variable
 
   private def par = "(" ~> expr <~ ")"
 
@@ -41,7 +43,7 @@ class Parser extends JavaTokenParsers {
       FnCall(name, args)
   }
 
-  private def term = ifSt | fCall | value | par
+  private def term = ifSt | fCall | value | par | block
 
   // unary
   private def unary1 = term
@@ -77,12 +79,12 @@ class Parser extends JavaTokenParsers {
 
   private def block: Parser[Block] = "{" ~> rep(statement) <~ "}" ^^ Block
 
-  private def ifSt = "if" ~> "(" ~> expr ~")" ~ block ~ opt("else" ~> block) ^^ {
+  private def ifSt = "if" ~> "(" ~> expr ~ ")" ~ block ~ opt("else" ~> block) ^^ {
     case cond ~ _ ~ thenBlock ~ elseBlockOpt =>
       IfBlock(cond, thenBlock.exprs, elseBlockOpt.map(_.exprs).getOrElse(Seq()))
   }
 
-  private def statement: Parser[Expression] = ((echo | valDefinition | assignment | expr) <~ ";") | block
+  private def statement: Parser[Expression] = echo | valDefinition | assignment | expr
 
   private val arg = varName ~ ":" ~ typeName ^^ {
     case varName ~ _ ~ typeName => FnDefinition.Arg(varName, typeName)
@@ -98,7 +100,7 @@ class Parser extends JavaTokenParsers {
       FnDefinition(sig, code)
   }
 
-  private val parser: Parser[List[ASTNode]] = rep(statement | fnDefinition)
+  private val parser: Parser[List[ASTNode]] = rep(fnDefinition | statement)
 
   def parse(r: java.io.Reader) = parseAll(parser, r)
 }

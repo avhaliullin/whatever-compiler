@@ -90,6 +90,14 @@ object ASTTypeChecker {
     }
   }
 
+  def getUpperBoundType(t1: Tpe, t2: Tpe): Tpe = {
+    if (t1 == t2) {
+      t1
+    } else {
+      Tpe.UNIT
+    }
+  }
+
   def convertExpression(bc: BlockContext, expr: RawAst.Expression): (TypedASTNode.Expression, BlockContext) = {
     expr match {
       case block: RawAst.Block =>
@@ -111,13 +119,13 @@ object ASTTypeChecker {
 
       case RawAst.UnaryOperator(arg, op) =>
         val (typedArg, newBc) = convertExpression(bc, arg)
-        Operator(typedArg, op) -> newBc
+        TypedASTNode.UOperator(typedArg, Operator(typedArg.tpe, op)) -> newBc
 
       case RawAst.BinaryOperator(l, r, op) =>
         val (typedArg1, bc1) = convertExpression(bc, l)
         val (typedArg2, bc2) = convertExpression(bc1, r)
 
-        Operator(typedArg1, typedArg2, op) -> bc2
+        TypedASTNode.BOperator(typedArg1, typedArg2, Operator(typedArg1.tpe, typedArg2.tpe, op)) -> bc2
 
       case RawAst.Echo(arg) =>
         val (typedArg, newBc) = convertExpression(bc, arg)
@@ -151,17 +159,39 @@ object ASTTypeChecker {
         }
         val fnSig = bc.gCtx.findFunction(name, typedArgs.map(_.tpe))
         TypedASTNode.FnCall(fnSig, typedArgs) -> newBc
+
+      case RawAst.IfBlock(cond, thenBlock, elseBlock) =>
+        val (condTyped, afterCondCtx) = convertExpression(bc, cond)
+        if (condTyped.tpe != Tpe.BOOL) {
+          throw new RuntimeException(s"If condition should be boolean type expression, found ${condTyped.tpe}")
+        }
+        val (thenBlockTyped, branch1Ctx) = convertBlock(afterCondCtx, thenBlock)
+        val (elseBlockTyped, branch2Ctx) = convertBlock(afterCondCtx, elseBlock)
+        val tpe = getUpperBoundType(thenBlockTyped.tpe, elseBlockTyped.tpe)
+        val (thenBlockFinal, elseBlockFinal) = if (tpe == Tpe.UNIT) {
+          (thenBlockTyped.mute, elseBlockTyped.mute)
+        } else {
+          (thenBlockTyped, elseBlockTyped)
+        }
+        TypedASTNode.IfExpr(condTyped, thenBlockFinal, elseBlockFinal, tpe) -> branch1Ctx.merge(branch2Ctx)
     }
   }
 
   def convertBlock(bc: BlockContext, exprs: Seq[RawAst.Expression]): (TypedASTNode.Block, BlockContext) = {
-    val (typedExprs, newCtx) = exprs.foldLeft((Vector[TypedASTNode.Expression](), bc)) {
-      case ((head, ctx), raw) =>
-        val (typedExpr, newCtx) = convertExpression(ctx, raw)
-        (head :+ typedExpr, newCtx)
+    if (exprs.isEmpty) {
+      TypedASTNode.Block(Nil, Tpe.UNIT) -> bc
+    } else {
+      val body = exprs.dropRight(1)
+      val last = exprs.last
+      val (typedExprs, newCtx) = body.foldLeft((Vector[TypedASTNode.Expression](), bc)) {
+        case ((head, ctx), raw) =>
+          val (typedExpr, newCtx) = convertExpression(ctx, raw)
+          (head :+ typedExpr.mute, newCtx)
+      }
+      val (lastTyped, lastCtx) = convertExpression(newCtx, last)
+      val tpe = lastTyped.tpe
+      TypedASTNode.Block(typedExprs :+ lastTyped, tpe) -> lastCtx
     }
-    val tpe = typedExprs.lastOption.map(_.tpe).getOrElse(Tpe.UNIT)
-    TypedASTNode.Block(typedExprs, tpe) -> newCtx
   }
 
   case class BlockContext(
@@ -171,6 +201,10 @@ object ASTTypeChecker {
                            assigned: Set[VarId],
                            blockId: BlockId
                          ) {
+    def merge(that: BlockContext): BlockContext = {
+      copy(assigned = this.assigned.intersect(that.assigned))
+    }
+
     def getVar(name: String): Option[VarInfo] = {
       localVars.get(name).orElse(outerVars.get(name))
     }

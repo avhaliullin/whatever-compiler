@@ -13,19 +13,33 @@ object TypedASTNode {
 
   sealed trait Expression extends TypedASTNode {
     def tpe: Tpe
+
+    def mute: Expression
   }
 
   sealed trait Statement extends Expression {
     override final def tpe: Tpe = Tpe.UNIT
+
+    def mute = this
   }
 
   case class VarDefinition(id: VarId, varType: Tpe) extends Statement
 
   case class VarAssignment(id: VarId, expr: Expression) extends Statement
 
-  case class VarRead(id: VarId, tpe: Tpe) extends Expression
+  case class VarRead(id: VarId, tpe: Tpe) extends Expression {
+    def mute = Nop
+  }
 
-  case class Block(code: Seq[TypedASTNode.Expression], tpe: Tpe) extends Expression
+  case class Block(code: Seq[TypedASTNode.Expression], tpe: Tpe) extends Expression {
+    def mute = {
+      if (tpe == Tpe.UNIT) {
+        this
+      } else {
+        Block(code.dropRight(1) :+ code.last.mute, Tpe.UNIT)
+      }
+    }
+  }
 
   case class FnDefinition(sig: FnDefinition.Signature, code: Seq[TypedASTNode.Expression]) extends Definition
 
@@ -41,36 +55,39 @@ object TypedASTNode {
 
   case class FnCall(sig: FnDefinition.Signature, args: Seq[Expression]) extends Expression {
     override def tpe: Tpe = sig.returnType
+
+    def mute = {
+      if (tpe == Tpe.UNIT) {
+        this
+      } else {
+        Block(Seq(this, Pop(tpe)), Tpe.UNIT)
+      }
+    }
   }
 
   case class Echo(expr: Expression) extends Statement
 
-  sealed abstract class BinaryOperator(val tpe: Tpe) extends Expression {
-    val arg1: Expression
-    val arg2: Expression
+  case class BOperator(arg1: Expression, arg2: Expression, op: BinaryOperator) extends Expression {
+    val tpe = op.retType
+
+    def mute = {
+      if (op.conditionalEval) {
+        Block(Seq(this, Pop(op.retType)), Tpe.UNIT)
+      } else {
+        Block(Seq(arg1.mute, arg2.mute), Tpe.UNIT)
+      }
+    }
   }
 
-  case class OpIAdd(arg1: Expression, arg2: Expression) extends BinaryOperator(Tpe.INT)
-  case class OpISub(arg1: Expression, arg2: Expression) extends BinaryOperator(Tpe.INT)
-  case class OpIMul(arg1: Expression, arg2: Expression) extends BinaryOperator(Tpe.INT)
-  case class OpIDiv(arg1: Expression, arg2: Expression) extends BinaryOperator(Tpe.INT)
+  case class UOperator(arg: Expression, op: UnaryOperator) extends Expression {
+    val tpe = op.retType
 
-  sealed trait ICmp extends BinaryOperator
-
-  case class OpILt(arg1: Expression, arg2: Expression) extends BinaryOperator(Tpe.BOOL) with ICmp
-  case class OpILte(arg1: Expression, arg2: Expression) extends BinaryOperator(Tpe.BOOL) with ICmp
-  case class OpIGt(arg1: Expression, arg2: Expression) extends BinaryOperator(Tpe.BOOL) with ICmp
-  case class OpIGte(arg1: Expression, arg2: Expression) extends BinaryOperator(Tpe.BOOL) with ICmp
-  case class OpIEq(arg1: Expression, arg2: Expression) extends BinaryOperator(Tpe.BOOL) with ICmp
-  case class OpINeq(arg1: Expression, arg2: Expression) extends BinaryOperator(Tpe.BOOL) with ICmp
-
-  sealed abstract class UnaryOperator(val tpe: Tpe) extends Expression {
-    val arg: Expression
+    def mute = arg.mute
   }
 
-  case class OpINeg(arg: Expression) extends UnaryOperator(Tpe.INT)
-
-  sealed trait Const extends Expression
+  sealed trait Const extends Expression {
+    def mute = Nop
+  }
 
   case class IntConst(value: Int) extends Const {
     val tpe = Tpe.INT
@@ -79,5 +96,19 @@ object TypedASTNode {
   case class BoolConst(value: Boolean) extends Const {
     val tpe = Tpe.BOOL
   }
+
+  case class IfExpr(cond: Expression, thenBlock: Expression, elseBlock: Expression, tpe: Tpe) extends Expression {
+    def mute = {
+      if (tpe == Tpe.UNIT) {
+        this
+      } else {
+        IfExpr(cond, thenBlock.mute, elseBlock.mute, Tpe.UNIT)
+      }
+    }
+  }
+
+  case object Nop extends Statement
+
+  case class Pop(argType: Tpe) extends Statement
 
 }

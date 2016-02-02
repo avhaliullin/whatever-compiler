@@ -28,6 +28,8 @@ object CompileTest {
 
       case p.Failure(msg, pos) =>
         println("Error: " + msg + "\nAt " + pos.offset)
+      case p.Error(msg, pos) =>
+        println("Error: " + msg + "\nAt " + pos.offset)
     }
 
   }

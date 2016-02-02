@@ -1,36 +1,120 @@
 package ru.avhaliullin.exp.typed
 
-import ru.avhaliullin.exp.typed.TypedASTNode.Expression
-
 /**
   * @author avhaliullin
   */
+sealed trait Operator {
+  def literal: String
+
+  def retType: Tpe
+}
+
+sealed trait BinaryOperator extends Operator {
+  def arg1Type: Tpe
+
+  def arg2Type: Tpe
+
+  def conditionalEval: Boolean = false
+}
+
+sealed trait UnaryOperator extends Operator {
+  def argType: Tpe
+}
+
 object Operator {
-  private val binOps: Map[(Tpe, Tpe, String), (Expression, Expression) => TypedASTNode.BinaryOperator] =
-    Map(
-      (Tpe.INT, Tpe.INT, "+") -> TypedASTNode.OpIAdd,
-      (Tpe.INT, Tpe.INT, "-") -> TypedASTNode.OpISub,
-      (Tpe.INT, Tpe.INT, "*") -> TypedASTNode.OpIMul,
-      (Tpe.INT, Tpe.INT, "/") -> TypedASTNode.OpIDiv,
 
-      (Tpe.INT, Tpe.INT, "<") -> TypedASTNode.OpILt,
-      (Tpe.INT, Tpe.INT, "<=") -> TypedASTNode.OpILte,
-      (Tpe.INT, Tpe.INT, ">") -> TypedASTNode.OpIGt,
-      (Tpe.INT, Tpe.INT, ">=") -> TypedASTNode.OpIGte,
-      (Tpe.INT, Tpe.INT, "==") -> TypedASTNode.OpIEq,
-      (Tpe.INT, Tpe.INT, "!=") -> TypedASTNode.OpINeq
-    )
+  protected sealed abstract class BinOp(val literal: String) extends BinaryOperator
 
-  def apply(l: Expression, r: Expression, name: String): TypedASTNode.BinaryOperator = {
-    binOps.getOrElse((l.tpe, r.tpe, name), throw new RuntimeException(s"Unknown operator ${l.tpe} $name ${r.tpe}"))(l, r)
+  object BinarySelector {
+
+    sealed trait X_X_Int extends BinaryOperator {
+      override def retType = Tpe.INT
+    }
+
+    sealed trait Int_Int_X extends BinaryOperator {
+      override def arg1Type = Tpe.INT
+
+      override def arg2Type = Tpe.INT
+    }
+
+    sealed trait Int_Int_Int extends X_X_Int with Int_Int_X
+
+    sealed trait X_X_Bool extends BinaryOperator {
+      override def retType = Tpe.BOOL
+    }
+
+    sealed trait Bool_Bool_X extends BinaryOperator {
+      override def arg1Type = Tpe.BOOL
+
+      override def arg2Type = Tpe.BOOL
+    }
+
+    sealed trait Predicate extends X_X_Bool
+
+    sealed trait Bool_Bool_Bool extends Bool_Bool_X with X_X_Bool
+
+    sealed trait Int_Int_Bool extends Int_Int_X with Predicate
+
+    sealed trait ConditionalEval extends BinaryOperator{
+      override def conditionalEval: Boolean = true
+    }
   }
 
-  private val unaryOps: Map[(Tpe, String), Expression => TypedASTNode.UnaryOperator] =
-    Map(
-      (Tpe.INT, "-") -> TypedASTNode.OpINeg
-    )
+  import BinarySelector._
 
-  def apply(arg: Expression, name: String): TypedASTNode.UnaryOperator = {
-    unaryOps.getOrElse((arg.tpe, name), throw new RuntimeException(s"Unknown operator ${arg.tpe} $name"))(arg)
+  case object IADD extends BinOp("+") with Int_Int_Int
+
+  case object ISUB extends BinOp("-") with Int_Int_Int
+
+  case object IMUL extends BinOp("*") with Int_Int_Int
+
+  case object IDIV extends BinOp("/") with Int_Int_Int
+
+
+  case object ILT extends BinOp("<") with Int_Int_Bool
+
+  case object ILE extends BinOp("<=") with Int_Int_Bool
+
+  case object IGT extends BinOp(">") with Int_Int_Bool
+
+  case object IGE extends BinOp(">=") with Int_Int_Bool
+
+  case object IEQ extends BinOp("==") with Int_Int_Bool
+
+  case object INE extends BinOp("!=") with Int_Int_Bool
+
+  private val binOps: Map[(Tpe, Tpe, String), BinaryOperator] =
+    Seq(
+      IADD,
+      ISUB,
+      IMUL,
+      IDIV,
+
+      ILT,
+      ILE,
+      IGT,
+      IGE,
+      IEQ,
+      INE
+    ).map(op => (op.arg1Type, op.arg2Type, op.literal) -> op).toMap
+
+  def apply(lTpe: Tpe, rTpe: Tpe, name: String): BinaryOperator = {
+    binOps.getOrElse((lTpe, rTpe, name), throw new RuntimeException(s"Unknown operator $lTpe $name $rTpe"))
+  }
+
+  protected sealed abstract class UnOp(val literal: String, tpe: Tpe) extends UnaryOperator {
+    val retType = tpe
+    val argType = tpe
+  }
+
+  case object INEG extends UnOp("-", Tpe.INT)
+
+  private val unaryOps: Map[(Tpe, String), UnaryOperator] =
+    Seq(
+      INEG
+    ).map(op => (op.argType, op.literal) -> op).toMap
+
+  def apply(argTpe: Tpe, name: String): UnaryOperator = {
+    unaryOps.getOrElse((argTpe, name), throw new RuntimeException(s"Unknown operator $argTpe $name"))
   }
 }

@@ -5,7 +5,7 @@ import org.apache.bcel.Constants._
 import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.generic._
 import ru.avhaliullin.exp.common.ClassName
-import ru.avhaliullin.exp.typed.{BlockId, Tpe, TypedASTNode, VarId}
+import ru.avhaliullin.exp.typed._
 
 /**
   * @author avhaliullin
@@ -97,23 +97,24 @@ object TypedBytecodeGenerator {
           Array(toJavaType(expr.tpe)),
           Constants.INVOKEVIRTUAL))
 
-      case bOp: BinaryOperator =>
-        generateForNode(ctx, bOp.arg1)
-        generateForNode(ctx, bOp.arg2)
-        bOp match {
-          case _: OpIDiv => ctx.il.append(new IDIV)
-          case _: OpIMul => ctx.il.append(new IMUL)
-          case _: OpISub => ctx.il.append(new ISUB)
-          case _: OpIAdd => ctx.il.append(new IADD)
+      case BOperator(arg1, arg2, op) =>
 
-          case icmp: ICmp =>
-            val ifInst = icmp match {
-              case _: OpILt => new IF_ICMPLT(null)
-              case _: OpILte => new IF_ICMPLE(null)
-              case _: OpIGt => new IF_ICMPGT(null)
-              case _: OpIGte => new IF_ICMPGE(null)
-              case _: OpIEq => new IF_ICMPEQ(null)
-              case _: OpINeq => new IF_ICMPNE(null)
+        generateForNode(ctx, arg1)
+        generateForNode(ctx, arg2)
+        op match {
+          case Operator.IDIV => ctx.il.append(new IDIV)
+          case Operator.IMUL => ctx.il.append(new IMUL)
+          case Operator.ISUB => ctx.il.append(new ISUB)
+          case Operator.IADD => ctx.il.append(new IADD)
+
+          case predicate: Operator.BinarySelector.Predicate =>
+            val ifInst = predicate match {
+              case Operator.ILT => new IF_ICMPLT(null)
+              case Operator.ILE => new IF_ICMPLE(null)
+              case Operator.IGT => new IF_ICMPGT(null)
+              case Operator.IGE => new IF_ICMPGE(null)
+              case Operator.IEQ => new IF_ICMPEQ(null)
+              case Operator.INE => new IF_ICMPNE(null)
             }
             ctx.il.append(ifInst)
             ctx.il.append(new PUSH(ctx.cpg, 0))
@@ -124,10 +125,10 @@ object TypedBytecodeGenerator {
             jmp.setTarget(end)
         }
 
-      case uOp: UnaryOperator =>
-        generateForNode(ctx, uOp.arg)
-        val inst = uOp match {
-          case _: OpINeg => new INEG
+      case UOperator(arg, op) =>
+        generateForNode(ctx, arg)
+        val inst = op match {
+          case Operator.INEG => new INEG
         }
         ctx.il.append(inst)
 
@@ -139,6 +140,23 @@ object TypedBytecodeGenerator {
             new PUSH(ctx.cpg, value)
         }
         ctx.il.append(inst)
+
+      case IfExpr(cond, thenBlock, elseBlock, tpe) =>
+        generateForNode(ctx, cond)
+        val ifInst = ctx.il.append(new IFEQ(null))
+        generateForNode(ctx, thenBlock)
+        val gotoEnd = ctx.il.append(new GOTO(null))
+        generateForNode(ctx, elseBlock)
+        val endIf = ctx.il.append(new NOP)
+        val startElse = gotoEnd.getNext
+        ifInst.setTarget(startElse)
+        gotoEnd.setTarget(endIf)
+
+      case Nop =>
+        ctx.il.append(new NOP)
+
+      case Pop(tpe) =>
+        ctx.il.append(InstructionFactory.createPop(toJavaType(tpe).getSize))
     }
   }
 
