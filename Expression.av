@@ -1,9 +1,0 @@
-fn fibb(n: int) : int = {
-    if (n < 2) {
-        n
-    } else {
-        fibb(n - 1) + fibb(n - 2)
-    }
-}
-
-echo(fibb(7))

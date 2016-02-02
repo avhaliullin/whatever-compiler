@@ -1,5 +1,7 @@
 package ru.avhaliullin.exp
 
+import java.io.{File, FilenameFilter}
+
 import ru.avhaliullin.exp.ast.ASTNode
 import ru.avhaliullin.exp.common.ClassName
 import ru.avhaliullin.exp.gen.TypedBytecodeGenerator
@@ -13,24 +15,30 @@ import scala.io.Source
   */
 object CompileTest {
   def main(args: Array[String]): Unit = {
-    val name = "Expression"
-    val p = new Parser
+    val dir = new File(".")
+    dir.list(new FilenameFilter {
+      override def accept(dir: File, name: String): Boolean = name.endsWith(".av")
+    }).foreach {
+      srcName =>
+        println("File: " + srcName)
+        val className = srcName.dropRight(".av".length)
+        val p = new Parser
 
-    val pr = p.parse(Source.fromFile(name + ".av").bufferedReader())
+        val pr = p.parse(Source.fromFile(srcName).bufferedReader())
 
-    pr match {
-      case p.Success(ast: List[ASTNode], _) =>
-        println(ast)
-        val typed = ASTTypeChecker.convert(ast)
-        println(typed)
-        val clazz = TypedBytecodeGenerator.generateClass(ClassName(name), typed)
-        clazz.dump(name + ".class")
+        pr match {
+          case p.Success(ast: List[ASTNode], _) =>
+            println(ast)
+            val typed = ASTTypeChecker.convert(ast)
+            println(typed)
+            val clazz = TypedBytecodeGenerator.generateClass(ClassName(className), typed)
+            clazz.dump(className + ".class")
 
-      case p.Failure(msg, pos) =>
-        println("Error: " + msg + "\nAt " + pos.offset)
-      case p.Error(msg, pos) =>
-        println("Error: " + msg + "\nAt " + pos.offset)
+          case p.Failure(msg, pos) =>
+            println("Error: " + msg + "\nAt " + pos.offset)
+          case p.Error(msg, pos) =>
+            println("Error: " + msg + "\nAt " + pos.offset)
+        }
     }
-
   }
 }
