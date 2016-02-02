@@ -11,24 +11,24 @@ import scala.util.parsing.combinator.JavaTokenParsers
 class Parser extends JavaTokenParsers {
 
   //  val literal: Parser[String] = """[a-zA-Z_][a-zA-Z_0-9]*""".r
-  val literal: Parser[String] = ident
+  private val literal: Parser[String] = ident
 
-  val varName = literal
+  private val varName = literal
 
-  val typeName = literal
+  private val typeName = literal
 
-  val fnName = literal
+  private val fnName = literal
 
-  val intConst: Parser[Int] = """-?[0-9]+""".r ^^ (_.toInt)
+  private val intConst: Parser[Int] = """-?[0-9]+""".r ^^ (_.toInt)
 
-  val const = intConst ^^ ASTNode.Const
+  private val const = intConst ^^ ASTNode.IntConst
 
   private def binOp(arg: ~[Expression, List[~[String, Expression]]]): Expression = {
     val ~(zero, rest) = arg
     rest.foldLeft(zero) {
       (acc, it) =>
         val ~(op, rArg) = it
-        Operator(acc, rArg, op)
+        BinaryOperator(acc, rArg, op)
     }
   }
 
@@ -41,7 +41,7 @@ class Parser extends JavaTokenParsers {
       FnCall(name, args)
   }
 
-  private def term = fCall | value | par
+  private def term = ifSt | fCall | value | par
 
   // unary
   private def unary1 = term
@@ -54,37 +54,51 @@ class Parser extends JavaTokenParsers {
 
   private def binary2 = binary1 ~ rep(binary2Regex ~ binary1) ^^ binOp
 
-  def expr: Parser[Expression] = binary2
+  private val binary3Regex = """!=|<=|>=|<|>|==""".r
+
+  private def binary3 = binary2 ~ rep(binary3Regex ~ binary2) ^^ binOp
+
+  private def binary = binary3
+
+  private def expr: Parser[Expression] = binary
 
 
-  val valDefinition = "var" ~> varName ^^ (name => VarDefinition(name))
+  private val valDefinition = "var" ~> varName ~ ":" ~ typeName ^^ {
+    case name ~ _ ~ tpe => VarDefinition(name, tpe)
+  }
 
-  val assignment = varName ~ "=" ~ expr ^^ {
+  private val assignment = varName ~ "=" ~ expr ^^ {
     case varName ~ _ ~ expr =>
       Assignment(varName, expr)
   }
 
 
-  val echo = "echo" ~> "(" ~> expr <~ ")" ^^ ASTNode.Echo
+  private val echo = "echo" ~> "(" ~> expr <~ ")" ^^ ASTNode.Echo
 
+  private def block: Parser[Block] = "{" ~> rep(statement) <~ "}" ^^ Block
 
-  val statement = (echo | valDefinition | assignment | expr) <~ ";"
+  private def ifSt = "if" ~> "(" ~> expr ~")" ~ block ~ opt("else" ~> block) ^^ {
+    case cond ~ _ ~ thenBlock ~ elseBlockOpt =>
+      IfBlock(cond, thenBlock.exprs, elseBlockOpt.map(_.exprs).getOrElse(Seq()))
+  }
 
-  val arg = varName ~ ":" ~ typeName ^^ {
+  private def statement: Parser[Expression] = ((echo | valDefinition | assignment | expr) <~ ";") | block
+
+  private val arg = varName ~ ":" ~ typeName ^^ {
     case varName ~ _ ~ typeName => FnDefinition.Arg(varName, typeName)
   }
 
-  val fnSignature = "fn" ~> fnName ~ "(" ~ repsep(arg, ",") ~ ")" ~ ":" ~ typeName ^^ {
+  private val fnSignature = "fn" ~> fnName ~ "(" ~ repsep(arg, ",") ~ ")" ~ ":" ~ typeName ^^ {
     case fnName ~ _ ~ args ~ _ ~ _ ~ retType =>
       FnDefinition.Signature(fnName, retType, args)
   }
 
-  val fnDefinition = fnSignature ~ "=" ~ "{" ~ rep(statement) <~ "}" ^^ {
+  private val fnDefinition = fnSignature ~ "=" ~ "{" ~ rep(statement) <~ "}" ^^ {
     case sig ~ _ ~ _ ~ code =>
       FnDefinition(sig, code)
   }
 
-  val parser: Parser[List[ASTNode]] = rep(statement | fnDefinition)
+  private val parser: Parser[List[ASTNode]] = rep(statement | fnDefinition)
 
   def parse(r: java.io.Reader) = parseAll(parser, r)
 }

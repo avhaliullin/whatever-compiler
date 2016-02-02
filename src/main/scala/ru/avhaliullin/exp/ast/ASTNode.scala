@@ -13,29 +13,36 @@ object ASTNode {
     override def isDefinition = true
   }
 
-  sealed trait Statement extends ASTNode
 
-  sealed trait Expression extends Statement
+  sealed trait Expression extends ASTNode
 
-  case class Const(value: Int) extends Expression
+  sealed trait Const extends Expression
+
+  case class IntConst(value: Int) extends Const
+
+  case class BoolConst(value: Boolean) extends Const
 
   case class Variable(name: String) extends Expression
 
-  case class Operator(l: Expression, r: Expression, op: String) extends Expression {
+  case class BinaryOperator(l: Expression, r: Expression, op: String) extends Expression {
     override def toString: String = op + "(" + l + ", " + r + ")"
   }
 
-  case class Echo(e: Expression) extends Statement
+  case class UnaryOperator(arg: Expression, op: String) extends Expression
 
-  case class Block(sts: List[Statement]) extends Statement
+  case class Echo(e: Expression) extends Expression
 
-  case class Assignment(variable: String, expr: Expression) extends Statement
+  case class Block(exprs: List[Expression]) extends Expression
 
-  case class VarDefinition(name: String) extends Statement
+  case class Assignment(variable: String, expr: Expression) extends Expression
+
+  case class VarDefinition(name: String, tpe: String) extends Expression
 
   case class FnCall(name: String, args: Seq[Expression]) extends Expression
 
-  case class FnDefinition(signature: FnDefinition.Signature, code: List[Statement]) extends ASTNode with Definition
+  case class FnDefinition(signature: FnDefinition.Signature, code: List[Expression]) extends ASTNode with Definition
+
+  case class IfBlock(cond: Expression, thenBlock: Seq[Expression], elseBlock: Seq[Expression]) extends Expression
 
   object FnDefinition {
 

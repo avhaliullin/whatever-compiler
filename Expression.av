@@ -1,4 +1,4 @@
-var x;
+var x: int;
 x = 9 - 2;
 
 echo(1 + x * 30/10);
@@ -23,3 +23,15 @@ echo(sum(x, inc(x)));
 
 echo(sum(x, inc(x), inc(inc(x))));
 
+echo(x < inc(x));
+echo(x <= inc(x));
+echo(x > inc(x));
+echo(x >= inc(x));
+echo(x == inc(x));
+echo(x != inc(x));
+
+fn lte(a: int, b: int): boolean = {
+    a <= b;
+}
+
+echo(lte(1, 2));

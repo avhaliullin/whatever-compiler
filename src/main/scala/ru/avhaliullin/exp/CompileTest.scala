@@ -2,8 +2,9 @@ package ru.avhaliullin.exp
 
 import ru.avhaliullin.exp.ast.ASTNode
 import ru.avhaliullin.exp.common.ClassName
-import ru.avhaliullin.exp.gen.BytecodeGenerator
+import ru.avhaliullin.exp.gen.TypedBytecodeGenerator
 import ru.avhaliullin.exp.parse.Parser
+import ru.avhaliullin.exp.typed.ASTTypeChecker
 
 import scala.io.Source
 
@@ -20,7 +21,9 @@ object CompileTest {
     pr match {
       case p.Success(ast: List[ASTNode], _) =>
         println(ast)
-        val clazz = BytecodeGenerator.generateClass(ClassName(name), ast)
+        val typed = ASTTypeChecker.convert(ast)
+        println(typed)
+        val clazz = TypedBytecodeGenerator.generateClass(ClassName(name), typed)
         clazz.dump(name + ".class")
 
       case p.Failure(msg, pos) =>
