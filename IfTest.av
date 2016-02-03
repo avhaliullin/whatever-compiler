@@ -1,0 +1,13 @@
+fn isGood(x: int): boolean = {
+    x / 2 * 2 == x
+}
+
+if (isGood(3)) {
+    echo(1)
+}
+
+if (isGood(4)) {
+    echo(2)
+} else {
+    echo(3)
+}

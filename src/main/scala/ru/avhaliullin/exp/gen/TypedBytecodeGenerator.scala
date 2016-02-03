@@ -57,6 +57,46 @@ object TypedBytecodeGenerator {
       ih
     }
 
+    def withIL(il: InstructionList): MethodContext = copy(il = il)
+  }
+
+  def generatePredicate(ctx: MethodContext, p: Operator.BinarySelector.Predicate, onTrue: InstructionList, onFalse: InstructionList): Unit = {
+    val ifInst = p match {
+      case Operator.ILT => new IF_ICMPLT(null)
+      case Operator.ILE => new IF_ICMPLE(null)
+      case Operator.IGT => new IF_ICMPGT(null)
+      case Operator.IGE => new IF_ICMPGE(null)
+      case Operator.IEQ => new IF_ICMPEQ(null)
+      case Operator.INE => new IF_ICMPNE(null)
+    }
+    ctx.il.append(ifInst)
+    ctx.il.append(onFalse)
+    val jmp = ctx.il.append(new GOTO(null))
+    val p0 = ctx.il.append(onTrue)
+    val end = ctx.il.append(new NOP)
+    ifInst.setTarget(p0)
+    jmp.setTarget(end)
+  }
+
+  def generateIf(ctx: MethodContext, cond: TypedASTNode.Expression, thenIl: InstructionList, elseIl: InstructionList): Unit = {
+    cond match {
+      case TypedASTNode.BOperator(arg1, arg2, op: Operator.BinarySelector.Predicate) =>
+        generateForNode(ctx, arg1)
+        generateForNode(ctx, arg2)
+        generatePredicate(ctx, op, thenIl, elseIl)
+
+      case _ =>
+        generateForNode(ctx, cond)
+        val ifInst = ctx.il.append(new IFEQ(null))
+        ctx.il.append(thenIl)
+        val gotoEnd = ctx.il.append(new GOTO(null))
+        ctx.il.append(elseIl)
+        val endIf = ctx.il.append(new NOP)
+        val startElse = gotoEnd.getNext
+        ifInst.setTarget(startElse)
+        gotoEnd.setTarget(endIf)
+    }
+
   }
 
   def generateForNode(ctx: MethodContext, node: TypedASTNode.Expression): Unit = {
@@ -108,21 +148,7 @@ object TypedBytecodeGenerator {
           case Operator.IADD => ctx.il.append(new IADD)
 
           case predicate: Operator.BinarySelector.Predicate =>
-            val ifInst = predicate match {
-              case Operator.ILT => new IF_ICMPLT(null)
-              case Operator.ILE => new IF_ICMPLE(null)
-              case Operator.IGT => new IF_ICMPGT(null)
-              case Operator.IGE => new IF_ICMPGE(null)
-              case Operator.IEQ => new IF_ICMPEQ(null)
-              case Operator.INE => new IF_ICMPNE(null)
-            }
-            ctx.il.append(ifInst)
-            ctx.il.append(new PUSH(ctx.cpg, 0))
-            val jmp = ctx.il.append(new GOTO(null))
-            val p0 = ctx.il.append(new PUSH(ctx.cpg, 1))
-            val end = ctx.il.append(new NOP)
-            ifInst.setTarget(p0)
-            jmp.setTarget(end)
+            generatePredicate(ctx, predicate, new InstructionList(new PUSH(ctx.cpg, 1)), new InstructionList(new PUSH(ctx.cpg, 0)))
         }
 
       case UOperator(arg, op) =>
@@ -142,15 +168,11 @@ object TypedBytecodeGenerator {
         ctx.il.append(inst)
 
       case IfExpr(cond, thenBlock, elseBlock, tpe) =>
-        generateForNode(ctx, cond)
-        val ifInst = ctx.il.append(new IFEQ(null))
-        generateForNode(ctx, thenBlock)
-        val gotoEnd = ctx.il.append(new GOTO(null))
-        generateForNode(ctx, elseBlock)
-        val endIf = ctx.il.append(new NOP)
-        val startElse = gotoEnd.getNext
-        ifInst.setTarget(startElse)
-        gotoEnd.setTarget(endIf)
+        val thenIl = new InstructionList()
+        val elseIl = new InstructionList()
+        generateForNode(ctx.withIL(thenIl), thenBlock)
+        generateForNode(ctx.withIL(elseIl), elseBlock)
+        generateIf(ctx, cond, thenIl, elseIl)
 
       case Nop =>
         ctx.il.append(new NOP)
