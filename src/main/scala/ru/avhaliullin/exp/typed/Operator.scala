@@ -55,9 +55,10 @@ object Operator {
 
     sealed trait Int_Int_Bool extends Int_Int_X with Predicate
 
-    sealed trait ConditionalEval extends BinaryOperator{
+    sealed trait ConditionalEval extends BinaryOperator {
       override def conditionalEval: Boolean = true
     }
+
   }
 
   import BinarySelector._
@@ -90,6 +91,10 @@ object Operator {
 
   case object BXOR extends BinOp("^") with Bool_Bool_Bool
 
+  case object BAND_OPT extends BinOp("&&") with Bool_Bool_Bool
+
+  case object BOR_OPT extends BinOp("||") with Bool_Bool_Bool
+
   private val binOps: Map[(Tpe, Tpe, String), BinaryOperator] =
     Seq(
       IADD,
@@ -106,7 +111,10 @@ object Operator {
 
       BAND,
       BOR,
-      BXOR
+      BXOR,
+
+      BAND_OPT,
+      BOR_OPT
     ).map(op => (op.arg1Type, op.arg2Type, op.literal) -> op).toMap
 
   def apply(lTpe: Tpe, rTpe: Tpe, name: String): BinaryOperator = {

@@ -102,6 +102,12 @@ object TypedBytecodeGenerator {
   def generateForNode(ctx: MethodContext, node: TypedASTNode.Expression): Unit = {
     import TypedASTNode._
 
+    def trivialBinOp(arg1: Expression, arg2: Expression, inst: Instruction): Unit = {
+      generateForNode(ctx, arg1)
+      generateForNode(ctx, arg2)
+      ctx.il.append(inst)
+    }
+
     node match {
       case VarDefinition(id, tpe) =>
         ctx.defineVar(id, tpe)
@@ -139,17 +145,43 @@ object TypedBytecodeGenerator {
 
       case BOperator(arg1, arg2, op) =>
 
-        generateForNode(ctx, arg1)
-        generateForNode(ctx, arg2)
         op match {
-          case Operator.IDIV => ctx.il.append(new IDIV)
-          case Operator.IMUL => ctx.il.append(new IMUL)
-          case Operator.ISUB => ctx.il.append(new ISUB)
-          case Operator.IADD => ctx.il.append(new IADD)
+          case Operator.IDIV => trivialBinOp(arg1, arg2, new IDIV)
+          case Operator.IMUL => trivialBinOp(arg1, arg2, new IMUL)
+          case Operator.ISUB => trivialBinOp(arg1, arg2, new ISUB)
+          case Operator.IADD => trivialBinOp(arg1, arg2, new IADD)
 
-          case Operator.BAND => ctx.il.append(new IAND)
-          case Operator.BOR => ctx.il.append(new IOR)
-          case Operator.BXOR => ctx.il.append(new IXOR)
+          case Operator.BAND => trivialBinOp(arg1, arg2, new IAND)
+          case Operator.BOR => trivialBinOp(arg1, arg2, new IOR)
+          case Operator.BXOR => trivialBinOp(arg1, arg2, new IXOR)
+
+          case Operator.BAND_OPT =>
+            generateForNode(ctx, arg1)
+
+            val if1 = ctx.il.append(new IFEQ(null))
+            generateForNode(ctx, arg2)
+            val if2 = ctx.il.append(new IFEQ(null))
+            ctx.il.append(new PUSH(ctx.cpg, 1))
+            val gotoEnd = ctx.il.append(new GOTO(null))
+            val onFalse = ctx.il.append(new PUSH(ctx.cpg, 0))
+            val end = ctx.il.append(new NOP)
+            if1.setTarget(onFalse)
+            if2.setTarget(onFalse)
+            gotoEnd.setTarget(end)
+
+          case Operator.BOR_OPT =>
+            generateForNode(ctx, arg1)
+
+            val if1 = ctx.il.append(new IFNE(null))
+            generateForNode(ctx, arg2)
+            val if2 = ctx.il.append(new IFNE(null))
+            ctx.il.append(new PUSH(ctx.cpg, 0))
+            val gotoEnd = ctx.il.append(new GOTO(null))
+            val onTrue = ctx.il.append(new PUSH(ctx.cpg, 1))
+            val end = ctx.il.append(new NOP)
+            if1.setTarget(onTrue)
+            if2.setTarget(onTrue)
+            gotoEnd.setTarget(end)
 
           case predicate: Operator.BinarySelector.Predicate =>
             generatePredicate(ctx, predicate, new InstructionList(new PUSH(ctx.cpg, 1)), new InstructionList(new PUSH(ctx.cpg, 0)))

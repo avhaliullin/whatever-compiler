@@ -4,17 +4,14 @@ var f: boolean
 t = true
 f = false
 
-echo(f & f)
 echo(f & t)
-echo(t & t)
 
-echo(f | f)
 echo(f | t)
-echo(t | t)
 
-echo(f ^ f)
 echo(f ^ t)
-echo(t ^ t)
 
-echo(!t)
+echo (f && t)
+
+echo (f || t)
+
 echo(!f)

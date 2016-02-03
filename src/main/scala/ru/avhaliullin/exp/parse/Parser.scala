@@ -84,7 +84,15 @@ class Parser extends JavaTokenParsers {
 
   private def binary7 = binary6 ~ rep(binary7Regex ~ binary6) ^^ binOp
 
-  private def binary = binary7
+  private val binary8Regex = "&&"
+
+  private def binary8 = binary7 ~ rep(binary8Regex ~ binary7) ^^ binOp
+
+  private val binary9Regex = "||"
+
+  private def binary9 = binary8 ~ rep(binary9Regex ~ binary8) ^^ binOp
+
+  private def binary = binary9
 
   private def expr: Parser[Expression] = binary
 
