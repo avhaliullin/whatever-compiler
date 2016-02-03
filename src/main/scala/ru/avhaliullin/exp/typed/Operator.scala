@@ -83,6 +83,13 @@ object Operator {
 
   case object INE extends BinOp("!=") with Int_Int_Bool
 
+
+  case object BAND extends BinOp("&") with Bool_Bool_Bool
+
+  case object BOR extends BinOp("|") with Bool_Bool_Bool
+
+  case object BXOR extends BinOp("^") with Bool_Bool_Bool
+
   private val binOps: Map[(Tpe, Tpe, String), BinaryOperator] =
     Seq(
       IADD,
@@ -95,7 +102,11 @@ object Operator {
       IGT,
       IGE,
       IEQ,
-      INE
+      INE,
+
+      BAND,
+      BOR,
+      BXOR
     ).map(op => (op.arg1Type, op.arg2Type, op.literal) -> op).toMap
 
   def apply(lTpe: Tpe, rTpe: Tpe, name: String): BinaryOperator = {
@@ -109,9 +120,12 @@ object Operator {
 
   case object INEG extends UnOp("-", Tpe.INT)
 
+  case object BNEG extends UnOp("!", Tpe.BOOL)
+
   private val unaryOps: Map[(Tpe, String), UnaryOperator] =
     Seq(
-      INEG
+      INEG,
+      BNEG
     ).map(op => (op.argType, op.literal) -> op).toMap
 
   def apply(argTpe: Tpe, name: String): UnaryOperator = {

@@ -46,21 +46,45 @@ class Parser extends JavaTokenParsers {
   private def term = ifSt | fCall | value | par | block
 
   // unary
-  private def unary1 = term
+  private val unaryRegex =
+    """-|!""".r
+
+  private def unary = rep(unaryRegex) ~ term ^^ {
+    case ops ~ expr => ops.foldRight(expr: Expression) {
+      (op, e) =>
+        UnaryOperator(e, op)
+    }
+  }
 
   private val binary1Regex = """\*|/""".r
 
-  private def binary1 = unary1 ~ rep(binary1Regex ~ unary1) ^^ binOp
+  private def binary1 = unary ~ rep(binary1Regex ~ unary) ^^ binOp
 
   private val binary2Regex = """\+|-""".r
 
   private def binary2 = binary1 ~ rep(binary2Regex ~ binary1) ^^ binOp
 
-  private val binary3Regex = """!=|<=|>=|<|>|==""".r
+  private val binary3Regex = """<=|>=|<|>""".r
 
   private def binary3 = binary2 ~ rep(binary3Regex ~ binary2) ^^ binOp
 
-  private def binary = binary3
+  private val binary4Regex = """!=|==""".r
+
+  private def binary4 = binary3 ~ rep(binary4Regex ~ binary3) ^^ binOp
+
+  private val binary5Regex = "&"
+
+  private def binary5 = binary4 ~ rep(binary5Regex ~ binary4) ^^ binOp
+
+  private val binary6Regex = "^"
+
+  private def binary6 = binary5 ~ rep(binary6Regex ~ binary5) ^^ binOp
+
+  private val binary7Regex = "|"
+
+  private def binary7 = binary6 ~ rep(binary7Regex ~ binary6) ^^ binOp
+
+  private def binary = binary7
 
   private def expr: Parser[Expression] = binary
 

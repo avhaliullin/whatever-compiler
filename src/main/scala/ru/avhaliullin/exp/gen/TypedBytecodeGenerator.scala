@@ -147,6 +147,10 @@ object TypedBytecodeGenerator {
           case Operator.ISUB => ctx.il.append(new ISUB)
           case Operator.IADD => ctx.il.append(new IADD)
 
+          case Operator.BAND => ctx.il.append(new IAND)
+          case Operator.BOR => ctx.il.append(new IOR)
+          case Operator.BXOR => ctx.il.append(new IXOR)
+
           case predicate: Operator.BinarySelector.Predicate =>
             generatePredicate(ctx, predicate, new InstructionList(new PUSH(ctx.cpg, 1)), new InstructionList(new PUSH(ctx.cpg, 0)))
         }
@@ -155,6 +159,9 @@ object TypedBytecodeGenerator {
         generateForNode(ctx, arg)
         val inst = op match {
           case Operator.INEG => new INEG
+          case Operator.BNEG =>
+            ctx.il.append(new PUSH(ctx.cpg, 1))
+            new IXOR
         }
         ctx.il.append(inst)
 
