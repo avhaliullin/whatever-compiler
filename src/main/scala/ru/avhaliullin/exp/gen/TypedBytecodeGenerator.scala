@@ -57,44 +57,63 @@ object TypedBytecodeGenerator {
       ih
     }
 
-    def withIL(il: InstructionList): MethodContext = copy(il = il)
-  }
-
-  def generatePredicate(ctx: MethodContext, p: Operator.BinarySelector.Predicate, onTrue: InstructionList, onFalse: InstructionList): Unit = {
-    val ifInst = p match {
-      case Operator.ILT => new IF_ICMPLT(null)
-      case Operator.ILE => new IF_ICMPLE(null)
-      case Operator.IGT => new IF_ICMPGT(null)
-      case Operator.IGE => new IF_ICMPGE(null)
-      case Operator.IEQ => new IF_ICMPEQ(null)
-      case Operator.INE => new IF_ICMPNE(null)
+    def withIL(il: InstructionList): MethodContext = {
+      val res = copy(il = il)
+      res.vars = vars
+      res
     }
-    ctx.il.append(ifInst)
-    ctx.il.append(onFalse)
-    val jmp = ctx.il.append(new GOTO(null))
-    val p0 = ctx.il.append(onTrue)
-    val end = ctx.il.append(new NOP)
-    ifInst.setTarget(p0)
-    jmp.setTarget(end)
+
+    def PUSH(i: Int) = new PUSH(cpg, i)
   }
 
-  def generateIf(ctx: MethodContext, cond: TypedASTNode.Expression, thenIl: InstructionList, elseIl: InstructionList): Unit = {
+  def generateBranching(ctx: MethodContext, bInst: BranchInstruction, onPassOpt: Option[InstructionList], onBranchOpt: Option[InstructionList]): Unit = {
+    (onPassOpt, onBranchOpt) match {
+      case (None, None) =>
+        ctx.il.append(bInst)
+        val nop = ctx.il.append(new NOP)
+        bInst.setTarget(nop)
+      case (Some(onPass), Some(onBranch)) =>
+        ctx.il.append(bInst)
+        ctx.il.append(onPass)
+        val jmp = ctx.il.append(new GOTO(null))
+        val p0 = ctx.il.append(onBranch)
+        val end = ctx.il.append(new NOP)
+        bInst.setTarget(p0)
+        jmp.setTarget(end)
+      case (Some(onPass), None) =>
+        ctx.il.append(bInst)
+        ctx.il.append(onPass)
+        val end = ctx.il.append(new NOP)
+        bInst.setTarget(end)
+      case (None, Some(onBranch)) =>
+        bInst match {
+          case ifInst: IfInstruction =>
+            generateBranching(ctx, ifInst.negate(), onBranchOpt, onPassOpt)
+          case _ =>
+            ctx.il.append(bInst)
+            val jmp = ctx.il.append(new GOTO(null))
+            val p0 = ctx.il.append(onBranch)
+            val end = ctx.il.append(new NOP)
+            bInst.setTarget(p0)
+            jmp.setTarget(end)
+        }
+    }
+  }
+
+  def generateBoolExpr(ctx: MethodContext, arg1: TypedASTNode.Expression, arg2: TypedASTNode.Expression, bInst: BranchInstruction): Unit = {
+    generateForNode(ctx, arg1)
+    generateForNode(ctx, arg2)
+    generateBranching(ctx, bInst, Some(new InstructionList(ctx.PUSH(0))), Some(new InstructionList(ctx.PUSH(1))))
+  }
+
+  def generateIf(ctx: MethodContext, cond: TypedASTNode.Expression, thenIl: Option[InstructionList], elseIl: Option[InstructionList]): Unit = {
     cond match {
-      case TypedASTNode.BOperator(arg1, arg2, op: Operator.BinarySelector.Predicate) =>
-        generateForNode(ctx, arg1)
-        generateForNode(ctx, arg2)
-        generatePredicate(ctx, op, thenIl, elseIl)
+      case BranchInliner(inliner) =>
+        inliner.inline(ctx, thenIl, elseIl)
 
       case _ =>
         generateForNode(ctx, cond)
-        val ifInst = ctx.il.append(new IFEQ(null))
-        ctx.il.append(thenIl)
-        val gotoEnd = ctx.il.append(new GOTO(null))
-        ctx.il.append(elseIl)
-        val endIf = ctx.il.append(new NOP)
-        val startElse = gotoEnd.getNext
-        ifInst.setTarget(startElse)
-        gotoEnd.setTarget(endIf)
+        generateBranching(ctx, new IFEQ(null), thenIl, elseIl)
     }
 
   }
@@ -155,7 +174,7 @@ object TypedBytecodeGenerator {
           case Operator.BOR => trivialBinOp(arg1, arg2, new IOR)
           case Operator.BXOR => trivialBinOp(arg1, arg2, new IXOR)
 
-          case Operator.BAND_OPT =>
+          case Operator.BAND_LZY =>
             generateForNode(ctx, arg1)
 
             val if1 = ctx.il.append(new IFEQ(null))
@@ -169,22 +188,26 @@ object TypedBytecodeGenerator {
             if2.setTarget(onFalse)
             gotoEnd.setTarget(end)
 
-          case Operator.BOR_OPT =>
+          case Operator.BOR_LZY =>
             generateForNode(ctx, arg1)
 
             val if1 = ctx.il.append(new IFNE(null))
             generateForNode(ctx, arg2)
             val if2 = ctx.il.append(new IFNE(null))
-            ctx.il.append(new PUSH(ctx.cpg, 0))
+            ctx.il.append(ctx.PUSH(0))
             val gotoEnd = ctx.il.append(new GOTO(null))
-            val onTrue = ctx.il.append(new PUSH(ctx.cpg, 1))
+            val onTrue = ctx.il.append(ctx.PUSH(1))
             val end = ctx.il.append(new NOP)
             if1.setTarget(onTrue)
             if2.setTarget(onTrue)
             gotoEnd.setTarget(end)
 
-          case predicate: Operator.BinarySelector.Predicate =>
-            generatePredicate(ctx, predicate, new InstructionList(new PUSH(ctx.cpg, 1)), new InstructionList(new PUSH(ctx.cpg, 0)))
+          case Operator.ILT => generateBoolExpr(ctx, arg1, arg2, new IF_ICMPLT(null))
+          case Operator.ILE => generateBoolExpr(ctx, arg1, arg2, new IF_ICMPLE(null))
+          case Operator.IGT => generateBoolExpr(ctx, arg1, arg2, new IF_ICMPGT(null))
+          case Operator.IGE => generateBoolExpr(ctx, arg1, arg2, new IF_ICMPGE(null))
+          case Operator.IEQ => generateBoolExpr(ctx, arg1, arg2, new IF_ICMPEQ(null))
+          case Operator.INE => generateBoolExpr(ctx, arg1, arg2, new IF_ICMPNE(null))
         }
 
       case UOperator(arg, op) =>
@@ -211,7 +234,9 @@ object TypedBytecodeGenerator {
         val elseIl = new InstructionList()
         generateForNode(ctx.withIL(thenIl), thenBlock)
         generateForNode(ctx.withIL(elseIl), elseBlock)
-        generateIf(ctx, cond, thenIl, elseIl)
+        val thenIlOpt = if (thenIl.isEmpty) None else Some(thenIl)
+        val elseIlOpt = if (elseIl.isEmpty) None else Some(elseIl)
+        generateIf(ctx, cond, thenIlOpt, elseIlOpt)
 
       case Nop =>
         ctx.il.append(new NOP)
@@ -260,5 +285,38 @@ object TypedBytecodeGenerator {
 
     cg.getJavaClass
   }
+
+  abstract class BranchInliner {
+    def inline(ctx: MethodContext, onTrue: Option[InstructionList], onFalse: Option[InstructionList])
+  }
+
+  object BranchInliner {
+    def unapply(e: TypedASTNode.Expression): Option[BranchInliner] = {
+      e match {
+        case TypedASTNode.BOperator(e1, e2, op) =>
+          val instOp = op match {
+            case Operator.ILT => Some(new IF_ICMPLT(null))
+            case Operator.ILE => Some(new IF_ICMPLE(null))
+            case Operator.IGT => Some(new IF_ICMPGT(null))
+            case Operator.IGE => Some(new IF_ICMPGE(null))
+            case Operator.IEQ => Some(new IF_ICMPEQ(null))
+            case Operator.INE => Some(new IF_ICMPNE(null))
+            case _ => None
+          }
+          instOp.map {
+            inst =>
+              new BranchInliner {
+                override def inline(ctx: MethodContext, onTrue: Option[InstructionList], onFalse: Option[InstructionList]): Unit = {
+                  generateForNode(ctx, e1)
+                  generateForNode(ctx, e2)
+                  generateBranching(ctx, inst, onFalse, onTrue)
+                }
+              }
+          }
+        case _ => None
+      }
+    }
+  }
+
 }
 

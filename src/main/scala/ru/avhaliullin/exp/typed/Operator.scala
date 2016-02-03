@@ -91,9 +91,9 @@ object Operator {
 
   case object BXOR extends BinOp("^") with Bool_Bool_Bool
 
-  case object BAND_OPT extends BinOp("&&") with Bool_Bool_Bool
+  case object BAND_LZY extends BinOp("&&") with Bool_Bool_Bool
 
-  case object BOR_OPT extends BinOp("||") with Bool_Bool_Bool
+  case object BOR_LZY extends BinOp("||") with Bool_Bool_Bool
 
   private val binOps: Map[(Tpe, Tpe, String), BinaryOperator] =
     Seq(
@@ -113,8 +113,8 @@ object Operator {
       BOR,
       BXOR,
 
-      BAND_OPT,
-      BOR_OPT
+      BAND_LZY,
+      BOR_LZY
     ).map(op => (op.arg1Type, op.arg2Type, op.literal) -> op).toMap
 
   def apply(lTpe: Tpe, rTpe: Tpe, name: String): BinaryOperator = {

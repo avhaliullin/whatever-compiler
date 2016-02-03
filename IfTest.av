@@ -11,3 +11,25 @@ if (isGood(4)) {
 } else {
     echo(3)
 }
+
+var b: boolean
+var t: boolean
+t = true
+b = false
+
+if (1 < 2) {
+    b = 1 < 2
+}
+
+if (1 == 1) {
+    b = 1 == 1
+}
+
+if (true) {
+    b = true
+}
+
+if (t) {
+    b = t
+}
+echo (b)
