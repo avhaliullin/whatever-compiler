@@ -17,9 +17,9 @@ object Tpe {
 
   def apply(name: String): Tpe = {
     name match {
-      case "int" => INT
-      case "boolean" => BOOL
-      case "unit" => UNIT
+      case "Int" => INT
+      case "Boolean" => BOOL
+      case "Unit" => UNIT
       case _ => throw new RuntimeException(s"Unknown type $name")
     }
   }

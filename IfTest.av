@@ -1,4 +1,4 @@
-fn isGood(x: int): boolean = {
+fn isGood(x: Int): Boolean = {
     x / 2 * 2 == x
 }
 
@@ -12,8 +12,8 @@ if (isGood(4)) {
     echo(3)
 }
 
-var b: boolean
-var t: boolean
+var b: Boolean
+var t: Boolean
 t = true
 b = false
 

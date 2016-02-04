@@ -1,5 +1,5 @@
-var t: boolean
-var f: boolean
+var t: Boolean
+var f: Boolean
 
 t = true
 f = false
