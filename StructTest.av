@@ -1,0 +1,10 @@
+struct A (foo: Boolean, bar: Int)
+
+fn createSt(x: Int): A = {
+    var b: Boolean
+    b = x == 10
+    new A(foo = b, bar = x)
+}
+
+echo(createSt(11))
+echo(createSt(10))

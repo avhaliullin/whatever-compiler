@@ -96,9 +96,33 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
         }
         TypedASTNode.IfExpr(condTyped, thenBlockFinal, elseBlockFinal, tpe) -> branch1Ctx.merge(branch2Ctx)
 
-//      case ASTNode.StructInstantiation(name, args) =>
-//        val struct = ts.getStruct(name)
-
+      case ASTNode.StructInstantiation(name, args) =>
+        val struct = ts.getStruct(name)
+        if (args.size != struct.fields.size) {
+          throw new RuntimeException(s"Cannot instantiate structure $name - expected ${struct.fields.size} arguments, passed ${args.size}")
+        }
+        val (exprs, evalOrder) = args match {
+          case ASTNode.StructInstantiation.ByOrder(rawExprs) =>
+            rawExprs -> rawExprs.indices
+          case ASTNode.StructInstantiation.ByName(rawExprs) =>
+            val name2Expr = rawExprs.zipWithIndex.map {
+              case ((name, e), i) => name ->(e, i)
+            }.toMap
+            struct.fields.foldLeft((IndexedSeq[ASTNode.Expression](), Seq[Int]())) {
+              case ((exprs, order), field) =>
+                val (expr, invocationIdx) = name2Expr.getOrElse(field.name, throw new RuntimeException(s"Field ${field.name} wasn't assigned"))
+                (exprs :+ expr, order :+ invocationIdx)
+            }
+        }
+        val (typedExprs, newCtx) = exprs.zip(struct.fields).foldLeft((Seq[TypedASTNode.Expression](), bc)) {
+          case ((head, ctx), (it, f)) =>
+            val (e, newCtx) = convertExpression(ctx, it)
+            if (!TypeUtils.isAssignable(e.tpe, f.tpe)) {
+              throw new RuntimeException(s"Initializing field ${f.name} of struct ${struct.name} with incompatible type ${e.tpe} - expected ${f.tpe}")
+            }
+            (head :+ e, newCtx)
+        }
+        TypedASTNode.StructureInstantiation(struct, typedExprs.toIndexedSeq, evalOrder) -> newCtx
     }
   }
 

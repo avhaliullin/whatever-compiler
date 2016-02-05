@@ -10,16 +10,10 @@ import ru.avhaliullin.exp.typed._
 /**
   * @author avhaliullin
   */
-object TypedBytecodeGenerator {
+class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
 
-  private def toJavaType(tpe: Tpe): Type = {
-    tpe match {
-      case Tpe.BOOL => Type.BOOLEAN
-      case Tpe.INT => Type.INT
-      case Tpe.UNIT => Type.VOID
-      case Tpe.ARGS => new ArrayType(Type.STRING, 1)
-    }
-  }
+  private val structName2Struct = structs.map(st => st.name -> st).toMap
+  private val jtg = new JavaTypeGen(className)
 
   private case class MethodContext(
                                     cg: ClassGen,
@@ -28,17 +22,19 @@ object TypedBytecodeGenerator {
                                     mg: MethodGen,
                                     il: InstructionList
                                   ) {
+    private var cpv = 0
+
     var vars: Map[VarId, LocalVariableGen] = mg.getLocalVariables.map {
       lvg =>
         VarId.MethodArg(lvg.getName) -> lvg
     }.toMap
 
     def defineVar(id: VarId, tpe: Tpe): Unit = {
-      vars += id -> mg.addLocalVariable(id.name, toJavaType(tpe), null, null)
+      vars += id -> mg.addLocalVariable(id.name, jtg.toJavaType(tpe), null, null)
     }
 
     def storeVar(id: VarId, tpe: Tpe): InstructionHandle = {
-      assignVar(id, InstructionFactory.createStore(toJavaType(tpe), _))
+      assignVar(id, InstructionFactory.createStore(jtg.toJavaType(tpe), _))
     }
 
     def assignVar(id: VarId, initializer: Int => Instruction): InstructionHandle = {
@@ -53,7 +49,7 @@ object TypedBytecodeGenerator {
 
     def loadVar(id: VarId, tpe: Tpe): InstructionHandle = {
       val lvg = vars(id)
-      val ih = il.append(InstructionFactory.createLoad(toJavaType(tpe), lvg.getIndex))
+      val ih = il.append(InstructionFactory.createLoad(jtg.toJavaType(tpe), lvg.getIndex))
       lvg.setEnd(ih)
       ih
     }
@@ -65,6 +61,13 @@ object TypedBytecodeGenerator {
     }
 
     def PUSH(i: Int) = new PUSH(cpg, i)
+
+    def generateLocalVar(tpe: Tpe): VarId = {
+      cpv += 1
+      val id = VarId.CompilerProduced(cpv)
+      defineVar(id, tpe)
+      id
+    }
   }
 
   def generateBranching(ctx: MethodContext, bInst: BranchInstruction, onPassOpt: Option[InstructionList], onBranchOpt: Option[InstructionList]): Unit = {
@@ -148,8 +151,8 @@ object TypedBytecodeGenerator {
           ctx.instF.createInvoke(
             ctx.cg.getClassName,
             sig.name,
-            toJavaType(sig.returnType),
-            sig.args.map(arg => toJavaType(arg.tpe)).toArray,
+            jtg.toJavaType(sig.returnType),
+            sig.args.map(arg => jtg.toJavaType(arg.tpe)).toArray,
             Constants.INVOKESTATIC
           )
         )
@@ -159,8 +162,21 @@ object TypedBytecodeGenerator {
         ctx.il.append(ctx.instF.createFieldAccess("java.lang.System", "out", pStream,
           Constants.GETSTATIC))
         generateForNode(ctx, expr)
+        val jType = jtg.toJavaType(expr.tpe)
+        val printType = jType match {
+          case obj: ObjectType if obj != Type.STRING =>
+            ctx.il.append(ctx.instF.createInvoke(
+              obj.getClassName,
+              "toString",
+              Type.STRING,
+              Array(),
+              Constants.INVOKEVIRTUAL
+            ))
+            Type.STRING
+          case other => other
+        }
         ctx.il.append(ctx.instF.createInvoke("java.io.PrintStream", "println", Type.VOID,
-          Array(toJavaType(expr.tpe)),
+          Array(printType),
           Constants.INVOKEVIRTUAL))
 
       case BOperator(arg1, arg2, op) =>
@@ -243,7 +259,31 @@ object TypedBytecodeGenerator {
         ctx.il.append(new NOP)
 
       case Pop(tpe) =>
-        ctx.il.append(InstructionFactory.createPop(toJavaType(tpe).getSize))
+        ctx.il.append(InstructionFactory.createPop(jtg.toJavaType(tpe).getSize))
+
+      case si@StructureInstantiation(struct, args, evalOrder) =>
+        val sType = jtg.toObjectType(si.tpe)
+        ctx.il.append(ctx.instF.createNew(sType))
+        ctx.il.append(new DUP)
+
+        val localVars = args.map(e => ctx.generateLocalVar(e.tpe) -> e.tpe).toIndexedSeq
+        evalOrder.foreach {
+          i =>
+            val e = args(i)
+            generateForNode(ctx, VarAssignment(localVars(i)._1, e))
+        }
+        localVars.foreach {
+          case (id, tpe) =>
+            ctx.loadVar(id, tpe)
+        }
+        ctx.il.append(
+          ctx.instF.createInvoke(
+            sType.getClassName, "<init>",
+            Type.VOID,
+            args.map(e => jtg.toJavaType(e.tpe)).toArray,
+            Constants.INVOKESPECIAL
+          )
+        )
     }
   }
 
@@ -251,7 +291,7 @@ object TypedBytecodeGenerator {
     code.foreach(generateForNode(ctx, _))
   }
 
-  def generateClass(className: ClassName, ast: Seq[TypedASTNode.Definition]): JavaClass = {
+  def generateClass(ast: Seq[TypedASTNode.Definition]): JavaClass = {
     val cg = new ClassGen(className.name, "java.lang.Object", "<generated>", ACC_PUBLIC | ACC_SUPER, null)
     val cp = cg.getConstantPool
 
@@ -279,7 +319,7 @@ object TypedBytecodeGenerator {
 
     ast.foreach {
       case TypedASTNode.FnDefinition(sig, code) =>
-        generateMethod(code, sig.name, sig.args.map(arg => (arg.name, toJavaType(arg.tpe))), toJavaType(sig.returnType))
+        generateMethod(code, sig.name, sig.args.map(arg => (arg.name, jtg.toJavaType(arg.tpe))), jtg.toJavaType(sig.returnType))
     }
 
     cg.getJavaClass

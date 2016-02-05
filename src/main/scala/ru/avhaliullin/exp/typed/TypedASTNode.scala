@@ -41,7 +41,7 @@ object TypedASTNode {
     }
   }
 
-  case class StructureInstantiation(desc: Structure, args: Seq[Expression], evalOrder: Seq[Int]) extends Expression {
+  case class StructureInstantiation(desc: Structure, args: IndexedSeq[Expression], evalOrder: Seq[Int]) extends Expression {
     val tpe = Tpe.Struct(desc.name)
 
     def mute = {
@@ -52,8 +52,6 @@ object TypedASTNode {
   case class StructureDefinition(desc: Structure) extends Definition
 
   case class FnDefinition(sig: FnSignature, code: Seq[TypedASTNode.Expression]) extends Definition
-
-//  case class Main(code: Seq[TypedASTNode.Expression]) extends Definition
 
   case class FnCall(sig: FnSignature, args: Seq[Expression]) extends Expression {
     override def tpe: Tpe = sig.returnType

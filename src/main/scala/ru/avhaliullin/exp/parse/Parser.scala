@@ -43,7 +43,16 @@ class Parser extends JavaTokenParsers {
       FnCall(name, args)
   }
 
-  private def term = ifSt | fCall | value | par | block
+  private def sInstantiation = "new" ~> typeName ~ "(" ~ (
+    repsep(literal ~ "=" ~ expr ^^ {
+      case fName ~ _ ~ arg => fName -> arg
+    }, ",") ^^ StructInstantiation.ByName |
+      repsep(expr, ",") ^^ StructInstantiation.ByOrder
+    ) <~ ")" ^^ {
+    case tpe ~ _ ~ args => StructInstantiation(tpe, args)
+  }
+
+  private def term = sInstantiation | ifSt | fCall | value | par | block
 
   // unary
   private val unaryRegex =

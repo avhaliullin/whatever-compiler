@@ -13,4 +13,8 @@ object VarId {
 
   case class LocalVar(name: String, id: Int) extends VarId
 
+  case class CompilerProduced(id: Int) extends VarId {
+    val name = "$x" + id
+  }
+
 }

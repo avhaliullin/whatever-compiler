@@ -23,7 +23,7 @@ class StructAnalyzer {
                   Tpe.Struct(field.tpe)
               }
               Structure.Field(field.name, fieldTpe)
-          }
+          }.toIndexedSeq
         )
     }
   }

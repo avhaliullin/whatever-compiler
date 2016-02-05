@@ -56,11 +56,17 @@ object ASTNode {
 
   object StructInstantiation {
 
-    sealed trait Args
+    sealed trait Args {
+      def size: Int
+    }
 
-    case class ByName(arg2Expr: Seq[(String, Expression)]) extends Args
+    case class ByName(arg2Expr: Seq[(String, Expression)]) extends Args {
+      def size = arg2Expr.size
+    }
 
-    case class ByOrder(args: Seq[Expression]) extends Args
+    case class ByOrder(args: Seq[Expression]) extends Args {
+      def size = args.size
+    }
 
   }
 
