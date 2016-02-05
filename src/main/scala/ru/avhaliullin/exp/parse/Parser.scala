@@ -145,7 +145,7 @@ class Parser extends JavaTokenParsers {
     case varName ~ _ ~ typeName => StructDefinition.Field(varName, typeName)
   }
 
-  private val structDefinition = "struct" ~> literal ~ (("{" ~> repsep(structField, "\n") <~ "}") | ("(" ~> repsep(structField, ",") <~ ")")) ^^ {
+  private val structDefinition = "struct" ~> literal ~ ("(" ~> repsep(structField, ",") <~ ")") ^^ {
     case typeName ~ fields =>
       StructDefinition(typeName, fields)
   }
