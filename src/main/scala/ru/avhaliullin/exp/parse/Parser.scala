@@ -43,16 +43,25 @@ class Parser extends JavaTokenParsers {
       FnCall(name, args)
   }
 
-  private def sInstantiation = "new" ~> typeName ~ "(" ~ (
-    repsep(literal ~ "=" ~ expr ^^ {
-      case fName ~ _ ~ arg => fName -> arg
-    }, ",") ^^ StructInstantiation.ByName |
-      repsep(expr, ",") ^^ StructInstantiation.ByOrder
-    ) <~ ")" ^^ {
-    case tpe ~ _ ~ args => StructInstantiation(tpe, args)
+  private def sInstantiation = "new" ~> typeName ~ ("(" ~>
+    repsep((literal <~ ":").? ~ expr ^^ {
+      case Some(name) ~ value => ASTNode.StructInstantiation.ByName(name, value)
+      case None ~ value => ASTNode.StructInstantiation.ByOrder(value)
+    }, ",") <~ ")") ^^ {
+    case tName ~ args =>
+      ASTNode.StructInstantiation(tName, args)
   }
 
-  private def term = sInstantiation | ifSt | fCall | value | par | block
+
+  private def term = (sInstantiation | ifSt | fCall | value | par | block) ~ ("." ~> rep1sep(varName, ".")).? ^^ {
+    case e ~ Some(fields) =>
+
+      fields.foldLeft(e) {
+        (acc, it) =>
+          ASTNode.FieldAccess(it, acc)
+      }
+    case e ~ None => e
+  }
 
   // unary
   private val unaryRegex =
@@ -101,20 +110,25 @@ class Parser extends JavaTokenParsers {
 
   private def binary9 = binary8 ~ rep(binary9Regex ~ binary8) ^^ binOp
 
-  private def binary = binary9
+  private val assignment = binary9 ~ rep("=" ~> binary9) ^^ {
+    case assignee ~ value =>
+      (assignee :: value).reduceRight {
+        (assignee, value) =>
+          ASTNode.Assignment(assignee, value)
+      }
+  }
+
+  private def binary = assignment
+
 
   private def expr: Parser[Expression] = binary
 
 
-  private val valDefinition = "var" ~> varName ~ ":" ~ typeName ^^ {
-    case name ~ _ ~ tpe => VarDefinition(name, tpe)
+  private val varDefinition = "var" ~> varName ~ (":" ~> typeName).? ~ ("=" ~> expr).? ^^ {
+    case name ~ None ~ None => throw new RuntimeException(s"Variable $name doesn't have type nor assigned")
+    case name ~ Some(tpe) ~ None => VarDefinition(name, tpe)
+    case name ~ tpeOpt ~ Some(ass) => VarDefinitionWithAssignment(name, tpeOpt, ass)
   }
-
-  private val assignment = varName ~ "=" ~ expr ^^ {
-    case varName ~ _ ~ expr =>
-      Assignment(varName, expr)
-  }
-
 
   private val echo = "echo" ~> "(" ~> expr <~ ")" ^^ ASTNode.Echo
 
@@ -125,7 +139,7 @@ class Parser extends JavaTokenParsers {
       IfBlock(cond, thenBlock.exprs, elseBlockOpt.map(_.exprs).getOrElse(Seq()))
   }
 
-  private def statement: Parser[Expression] = echo | valDefinition | assignment | expr
+  private def statement: Parser[Expression] = echo | varDefinition | assignment | expr
 
   private val arg = varName ~ ":" ~ typeName ^^ {
     case varName ~ _ ~ typeName => FnDefinition.Arg(varName, typeName)

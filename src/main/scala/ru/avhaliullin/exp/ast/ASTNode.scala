@@ -34,9 +34,13 @@ object ASTNode {
 
   case class Block(exprs: List[Expression]) extends Expression
 
-  case class Assignment(variable: String, expr: Expression) extends Expression
+  case class Assignment(assignee: Expression, value: Expression) extends Expression
+
+  case class FieldAccess(name: String, expr: Expression) extends Expression
 
   case class VarDefinition(name: String, tpe: String) extends Expression
+
+  case class VarDefinitionWithAssignment(name: String, tpe: Option[String], expr: Expression) extends Expression
 
   case class IfBlock(cond: Expression, thenBlock: Seq[Expression], elseBlock: Seq[Expression]) extends Expression
 
@@ -52,21 +56,17 @@ object ASTNode {
 
   }
 
-  case class StructInstantiation(name: String, args: StructInstantiation.Args) extends Expression
+  case class StructInstantiation(name: String, args: Seq[StructInstantiation.Arg]) extends Expression
 
   object StructInstantiation {
 
-    sealed trait Args {
-      def size: Int
+    sealed trait Arg {
+      def value: Expression
     }
 
-    case class ByName(arg2Expr: Seq[(String, Expression)]) extends Args {
-      def size = arg2Expr.size
-    }
+    case class ByName(name: String, value: Expression) extends Arg
 
-    case class ByOrder(args: Seq[Expression]) extends Args {
-      def size = args.size
-    }
+    case class ByOrder(value: Expression) extends Arg
 
   }
 

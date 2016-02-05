@@ -1,6 +1,7 @@
 package ru.avhaliullin.exp.typed
 
 import ru.avhaliullin.exp.ast.ASTNode
+import ru.avhaliullin.exp.ast.ASTNode.StructInstantiation.{ByName, ByOrder}
 
 /**
   * @author avhaliullin
@@ -55,13 +56,29 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
         }
         TypedASTNode.Echo(typedArg) -> newBc
 
-      case ASTNode.Assignment(variable, arg) =>
-        bc.getVar(variable) match {
-          case None => throw new RuntimeException(s"Assignement to undefined variable $variable")
-          case Some(varInfo) =>
-            val (typedArg, newBc) = convertExpression(bc, arg)
-            TypeUtils.assertAssignable(typedArg.tpe, varInfo.tpe)
-            TypedASTNode.VarAssignment(varInfo.id, typedArg) -> newBc.assign(varInfo.id)
+      case ASTNode.Assignment(assignee, value) =>
+        val (typedValue, newBc) = convertExpression(bc, value)
+        assignee match {
+          case ASTNode.Variable(name) =>
+            bc.getVar(name) match {
+              case None => throw new RuntimeException(s"Assignment to undefined variable $assignee")
+              case Some(varInfo) =>
+                TypeUtils.assertAssignable(typedValue.tpe, varInfo.tpe)
+                TypedASTNode.VarAssignment(varInfo.id, typedValue, read = true) -> newBc.assign(varInfo.id)
+            }
+          case ASTNode.FieldAccess(name, stExpr) =>
+            val (typedStExpr, newBc) = convertExpression(bc, stExpr)
+            typedStExpr.tpe match {
+              case Tpe.Struct(sName) =>
+                val st = ts.getStruct(sName)
+                val field = st.fieldsMap.getOrElse(name, throw new RuntimeException(s"Type $typedStExpr doesn't have member $name"))
+                TypeUtils.assertAssignable(typedValue.tpe, field.tpe)
+                TypedASTNode.FieldAssignment(TypedASTNode.FieldAccess(field, st, typedStExpr), typedValue, true) -> newBc
+              case other =>
+                throw new RuntimeException(s"Type $typedStExpr doesn't have member $name")
+            }
+          case other =>
+            throw new RuntimeException(s"Left-side part of expression is not assignable: $other")
         }
 
       case ASTNode.VarDefinition(name, tpeName) =>
@@ -71,6 +88,31 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
         val tpe = ts.getPassable(tpeName)
         val varId = varIdGen.nextVar(name)
         TypedASTNode.VarDefinition(varId, tpe) -> bc.define(VarInfo(varId, tpe))
+
+      case ASTNode.VarDefinitionWithAssignment(name, rawTpeOpt, rawExpr) =>
+        val (typedExpr, newBc) = convertExpression(bc, rawExpr)
+        val tpeOpt = rawTpeOpt.map(ts.getPassable)
+        tpeOpt.foreach(TypeUtils.assertAssignable(typedExpr.tpe, _))
+        val tpe = tpeOpt.getOrElse(typedExpr.tpe)
+        if (bc.localVars.contains(name)) {
+          throw new RuntimeException(s"Variable $name already defined in scope")
+        }
+        val varId = varIdGen.nextVar(name)
+        TypedASTNode.Block(Seq(
+          TypedASTNode.VarDefinition(varId, tpe),
+          TypedASTNode.VarAssignment(varId, typedExpr, true)
+        ), tpe) -> newBc.define(VarInfo(varId, tpe)).assign(varId)
+
+      case ASTNode.FieldAccess(name, stExpr) =>
+        val (typedStExpr, newBc) = convertExpression(bc, stExpr)
+        typedStExpr.tpe match {
+          case Tpe.Struct(sName) =>
+            val st = ts.getStruct(sName)
+            val field = st.fieldsMap.getOrElse(name, throw new RuntimeException(s"Type $typedStExpr doesn't have member $name"))
+            TypedASTNode.FieldAccess(field, st, typedStExpr) -> newBc
+          case other =>
+            throw new RuntimeException(s"Type $typedStExpr doesn't have member $name")
+        }
 
       case ASTNode.FnCall(name, args) =>
         val (typedArgs, newBc) = args.foldLeft((Vector[TypedASTNode.Expression](), bc)) {
@@ -101,18 +143,26 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
         if (args.size != struct.fields.size) {
           throw new RuntimeException(s"Cannot instantiate structure $name - expected ${struct.fields.size} arguments, passed ${args.size}")
         }
-        val (exprs, evalOrder) = args match {
-          case ASTNode.StructInstantiation.ByOrder(rawExprs) =>
-            rawExprs -> rawExprs.indices
-          case ASTNode.StructInstantiation.ByName(rawExprs) =>
-            val name2Expr = rawExprs.zipWithIndex.map {
-              case ((name, e), i) => name ->(e, i)
-            }.toMap
-            struct.fields.foldLeft((IndexedSeq[ASTNode.Expression](), Seq[Int]())) {
-              case ((exprs, order), field) =>
-                val (expr, invocationIdx) = name2Expr.getOrElse(field.name, throw new RuntimeException(s"Field ${field.name} wasn't assigned"))
-                (exprs :+ expr, order :+ invocationIdx)
+        val (byNameExprs, _) = args.zipWithIndex.foldLeft((IndexedSeq[ASTNode.StructInstantiation.ByName](), false)) {
+          case ((head, byName), (it, idx)) =>
+            it match {
+              case ByOrder(value) =>
+                if (byName) {
+                  throw new RuntimeException(s"You cannot use by-order args after by-name args")
+                }
+                (head :+ ASTNode.StructInstantiation.ByName(struct.fields(idx).name, value)) -> false
+              case bName: ByName =>
+                (head :+ bName) -> true
             }
+        }
+
+        val name2Expr = byNameExprs.zipWithIndex.map {
+          case (ByName(name, e), i) => name ->(e, i)
+        }.toMap
+        val (exprs, evalOrder) = struct.fields.foldLeft((IndexedSeq[ASTNode.Expression](), Seq[Int]())) {
+          case ((exprs, order), field) =>
+            val (expr, invocationIdx) = name2Expr.getOrElse(field.name, throw new RuntimeException(s"Field ${field.name} wasn't assigned"))
+            (exprs :+ expr, order :+ invocationIdx)
         }
         val (typedExprs, newCtx) = exprs.zip(struct.fields).foldLeft((Seq[TypedASTNode.Expression](), bc)) {
           case ((head, ctx), (it, f)) =>

@@ -8,7 +8,7 @@ import ru.avhaliullin.exp.ast.ASTNode
 class ClassConverter {
   private val mainSig = FnSignature("main", Seq(FnSignature.Arg("args", Tpe.ARGS)), Tpe.UNIT)
 
-  def convert(ast: Seq[ASTNode]): (Seq[TypedASTNode.Definition], Seq[Structure]) = {
+  def convert(ast: Seq[ASTNode]): (Seq[TypedASTNode.FnDefinition], Seq[Structure]) = {
     val structs = ast.collect {
       case st: ASTNode.StructDefinition => st
     }

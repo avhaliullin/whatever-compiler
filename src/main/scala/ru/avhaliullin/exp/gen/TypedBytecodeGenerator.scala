@@ -135,12 +135,34 @@ class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
       case VarDefinition(id, tpe) =>
         ctx.defineVar(id, tpe)
 
-      case VarAssignment(id, expr) =>
-        generateForNode(ctx, expr)
-        ctx.storeVar(id, expr.tpe)
+      case FieldAssignment(field, value, read) =>
+        generateForNode(ctx, field.expr)
+        generateForNode(ctx, value)
+        val retVar = if (read) {
+          ctx.il.append(InstructionFactory.createDup(jtg.toJavaType(field.tpe).getSize))
+          val id = ctx.generateLocalVar(value.tpe)
+          ctx.storeVar(id, value.tpe)
+          Some(id)
+        } else None
+        ctx.il.append(ctx.instF.createPutField(jtg.toJavaType(field.structure).getClassName, field.field.name, jtg.toJavaType(field.tpe)))
+        retVar.foreach {
+          id =>
+            ctx.loadVar(id, value.tpe)
+        }
+
+      case VarAssignment(id, value, read) =>
+        generateForNode(ctx, value)
+        if (read) {
+          ctx.il.append(InstructionFactory.createDup(jtg.toJavaType(value.tpe).getSize))
+        }
+        ctx.storeVar(id, value.tpe)
 
       case VarRead(id, tpe) =>
         ctx.loadVar(id, tpe)
+
+      case FieldAccess(field, st, stExpr) =>
+        generateForNode(ctx, stExpr)
+        ctx.il.append(ctx.instF.createGetField(jtg.toJavaType(st).getClassName, field.name, jtg.toJavaType(field.tpe)))
 
       case Block(code, tpe) =>
         code.foreach(generateForNode(ctx, _))
@@ -166,7 +188,7 @@ class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
         val printType = jType match {
           case obj: ObjectType if obj != Type.STRING =>
             ctx.il.append(ctx.instF.createInvoke(
-              obj.getClassName,
+              Type.OBJECT.getClassName,
               "toString",
               Type.STRING,
               Array(),
@@ -270,7 +292,7 @@ class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
         evalOrder.foreach {
           i =>
             val e = args(i)
-            generateForNode(ctx, VarAssignment(localVars(i)._1, e))
+            generateForNode(ctx, VarAssignment(localVars(i)._1, e, false))
         }
         localVars.foreach {
           case (id, tpe) =>
@@ -291,7 +313,7 @@ class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
     code.foreach(generateForNode(ctx, _))
   }
 
-  def generateClass(ast: Seq[TypedASTNode.Definition]): JavaClass = {
+  def generateClass(ast: Seq[TypedASTNode.FnDefinition]): JavaClass = {
     val cg = new ClassGen(className.name, "java.lang.Object", "<generated>", ACC_PUBLIC | ACC_SUPER, null)
     val cp = cg.getConstantPool
 

@@ -3,7 +3,9 @@ package ru.avhaliullin.exp.typed
 /**
   * @author avhaliullin
   */
-case class Structure(name: String, fields: IndexedSeq[Structure.Field])
+case class Structure(name: String, fields: IndexedSeq[Structure.Field]){
+  val fieldsMap = fields.map(f => f.name -> f).toMap
+}
 
 object Structure {
 

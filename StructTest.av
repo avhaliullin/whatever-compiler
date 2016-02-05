@@ -1,10 +1,22 @@
 struct A (foo: Boolean, bar: Int)
 
+fn echo2(st: A): Unit = {
+    echo(st.foo)
+    echo(st.bar)
+}
+
 fn createSt(x: Int): A = {
     var b: Boolean
     b = x == 10
-    new A(foo = b, bar = x)
+    new A(foo : b, bar : x)
 }
 
-echo(createSt(11))
-echo(createSt(10))
+var st = createSt(10)
+
+echo(st)
+
+st.bar = 13
+
+echo(st)
+echo2(st)
+echo(new A(false, bar : 14))

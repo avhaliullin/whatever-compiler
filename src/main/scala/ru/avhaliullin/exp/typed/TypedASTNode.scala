@@ -25,7 +25,28 @@ object TypedASTNode {
 
   case class VarDefinition(id: VarId, varType: Tpe) extends Statement
 
-  case class VarAssignment(id: VarId, expr: Expression) extends Statement
+  sealed trait Assignment extends Expression {
+    def value: Expression
+
+    def read: Boolean
+
+    def tpe = if (read) value.tpe else Tpe.UNIT
+  }
+
+  case class VarAssignment(id: VarId, value: Expression, read: Boolean) extends Assignment {
+
+    def mute = if (read) copy(read = false) else this
+  }
+
+  case class FieldAccess(field: Structure.Field, structure: Structure, expr: Expression) extends Expression {
+    def tpe = field.tpe
+
+    def mute = expr.mute
+  }
+
+  case class FieldAssignment(field: FieldAccess, value: Expression, read: Boolean) extends Assignment {
+    def mute = if (read) copy(read = false) else this
+  }
 
   case class VarRead(id: VarId, tpe: Tpe) extends Expression {
     def mute = Nop
