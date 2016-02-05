@@ -3,24 +3,40 @@ package ru.avhaliullin.exp.typed
 /**
   * @author avhaliullin
   */
-sealed trait Tpe
+sealed trait Tpe {
+  def name: String
+}
 
 object Tpe {
 
   sealed trait Predefined extends Tpe
 
-  case object INT extends Predefined
+  sealed trait Passable extends Tpe
 
-  case object BOOL extends Predefined
+  case object INT extends Predefined with Passable {
+    val name = "Int"
+  }
 
-  case object UNIT extends Predefined
+  case object BOOL extends Predefined with Passable {
+    val name = "Boolean"
+  }
 
-  def apply(name: String): Tpe = {
+  case object UNIT extends Predefined {
+    val name = "Unit"
+  }
+
+  case object ARGS extends Predefined with Passable{
+    val name = "String[]"
+  }
+
+  case class Struct(name: String) extends Tpe with Passable
+
+  def getOpt(name: String): Option[Tpe] = {
     name match {
-      case "Int" => INT
-      case "Boolean" => BOOL
-      case "Unit" => UNIT
-      case _ => throw new RuntimeException(s"Unknown type $name")
+      case "Int" => Some(INT)
+      case "Boolean" => Some(BOOL)
+      case "Unit" => Some(UNIT)
+      case _ => None
     }
   }
 

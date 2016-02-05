@@ -17,6 +17,7 @@ object TypedBytecodeGenerator {
       case Tpe.BOOL => Type.BOOLEAN
       case Tpe.INT => Type.INT
       case Tpe.UNIT => Type.VOID
+      case Tpe.ARGS => new ArrayType(Type.STRING, 1)
     }
   }
 
@@ -29,7 +30,7 @@ object TypedBytecodeGenerator {
                                   ) {
     var vars: Map[VarId, LocalVariableGen] = mg.getLocalVariables.map {
       lvg =>
-        VarId(lvg.getName, BlockId.MethodArg) -> lvg
+        VarId.MethodArg(lvg.getName) -> lvg
     }.toMap
 
     def defineVar(id: VarId, tpe: Tpe): Unit = {
@@ -279,8 +280,6 @@ object TypedBytecodeGenerator {
     ast.foreach {
       case TypedASTNode.FnDefinition(sig, code) =>
         generateMethod(code, sig.name, sig.args.map(arg => (arg.name, toJavaType(arg.tpe))), toJavaType(sig.returnType))
-      case TypedASTNode.Main(code) =>
-        generateMethod(code, "main", Seq(("args", new ArrayType(Type.STRING, 1))), Type.VOID)
     }
 
     cg.getJavaClass

@@ -38,17 +38,37 @@ object ASTNode {
 
   case class VarDefinition(name: String, tpe: String) extends Expression
 
+  case class IfBlock(cond: Expression, thenBlock: Seq[Expression], elseBlock: Seq[Expression]) extends Expression
+
   case class FnCall(name: String, args: Seq[Expression]) extends Expression
 
   case class FnDefinition(signature: FnDefinition.Signature, code: List[Expression]) extends ASTNode with Definition
-
-  case class IfBlock(cond: Expression, thenBlock: Seq[Expression], elseBlock: Seq[Expression]) extends Expression
 
   object FnDefinition {
 
     case class Signature(name: String, returnT: String, args: Seq[FnDefinition.Arg])
 
     case class Arg(name: String, tpe: String)
+
+  }
+
+  case class StructInstantiation(name: String, args: StructInstantiation.Args) extends Expression
+
+  object StructInstantiation {
+
+    sealed trait Args
+
+    case class ByName(arg2Expr: Seq[(String, Expression)]) extends Args
+
+    case class ByOrder(args: Seq[Expression]) extends Args
+
+  }
+
+  case class StructDefinition(name: String, fields: Seq[StructDefinition.Field]) extends ASTNode with Definition
+
+  object StructDefinition {
+
+    case class Field(name: String, tpe: String)
 
   }
 

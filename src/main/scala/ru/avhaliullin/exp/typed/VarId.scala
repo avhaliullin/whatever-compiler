@@ -3,4 +3,14 @@ package ru.avhaliullin.exp.typed
 /**
   * @author avhaliullin
   */
-case class VarId(name: String, definedIn: BlockId)
+sealed trait VarId {
+  def name: String
+}
+
+object VarId {
+
+  case class MethodArg(name: String) extends VarId
+
+  case class LocalVar(name: String, id: Int) extends VarId
+
+}

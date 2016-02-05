@@ -132,7 +132,16 @@ class Parser extends JavaTokenParsers {
       FnDefinition(sig, code)
   }
 
-  private val parser: Parser[List[ASTNode]] = rep(fnDefinition | statement)
+  private val structField = varName ~ ":" ~ typeName ^^ {
+    case varName ~ _ ~ typeName => StructDefinition.Field(varName, typeName)
+  }
+
+  private val structDefinition = "struct" ~> literal ~ (("{" ~> repsep(structField, "\n") <~ "}") | ("(" ~> repsep(structField, ",") <~ ")")) ^^ {
+    case typeName ~ fields =>
+      StructDefinition(typeName, fields)
+  }
+
+  private val parser: Parser[List[ASTNode]] = rep(structDefinition | fnDefinition | statement)
 
   def parse(r: java.io.Reader) = parseAll(parser, r)
 }

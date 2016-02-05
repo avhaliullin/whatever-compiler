@@ -41,19 +41,21 @@ object TypedASTNode {
     }
   }
 
-  case class FnDefinition(sig: FnDefinition.Signature, code: Seq[TypedASTNode.Expression]) extends Definition
+  case class StructureInstantiation(desc: Structure, args: Seq[Expression], evalOrder: Seq[Int]) extends Expression {
+    val tpe = Tpe.Struct(desc.name)
 
-  case class Main(code: Seq[TypedASTNode.Expression]) extends Definition
-
-  object FnDefinition {
-
-    case class Signature(name: String, args: Seq[Arg], returnType: Tpe)
-
-    case class Arg(name: String, tpe: Tpe)
-
+    def mute = {
+      Block(evalOrder.map(args(_).mute), Tpe.UNIT)
+    }
   }
 
-  case class FnCall(sig: FnDefinition.Signature, args: Seq[Expression]) extends Expression {
+  case class StructureDefinition(desc: Structure) extends Definition
+
+  case class FnDefinition(sig: FnSignature, code: Seq[TypedASTNode.Expression]) extends Definition
+
+//  case class Main(code: Seq[TypedASTNode.Expression]) extends Definition
+
+  case class FnCall(sig: FnSignature, args: Seq[Expression]) extends Expression {
     override def tpe: Tpe = sig.returnType
 
     def mute = {
