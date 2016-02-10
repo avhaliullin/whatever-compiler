@@ -21,7 +21,7 @@ object CompileTest {
     }).foreach {
       srcName =>
         println("File: " + srcName)
-        val className = srcName.dropRight(".av".length)
+        val className = srcName.dropRight(".we".length)
         val p = new Parser
 
         val pr = p.parse(Source.fromFile(srcName).bufferedReader())
