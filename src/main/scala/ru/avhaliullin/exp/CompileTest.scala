@@ -17,7 +17,7 @@ object CompileTest {
   def main(args: Array[String]): Unit = {
     val dir = new File(".")
     dir.list(new FilenameFilter {
-      override def accept(dir: File, name: String): Boolean = name.endsWith(".av")
+      override def accept(dir: File, name: String): Boolean = name.endsWith(".we")
     }).foreach {
       srcName =>
         println("File: " + srcName)
