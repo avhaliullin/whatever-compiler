@@ -44,7 +44,7 @@ class Parser extends JavaTokenParsers {
   }
 
   private def sInstantiation = "new" ~> typeName ~ ("(" ~>
-    repsep((literal <~ ":").? ~ expr ^^ {
+    repsep((literal <~ ":=").? ~ expr ^^ {
       case Some(name) ~ value => ASTNode.StructInstantiation.ByName(name, value)
       case None ~ value => ASTNode.StructInstantiation.ByOrder(value)
     }, ",") <~ ")") ^^ {

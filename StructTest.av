@@ -8,7 +8,7 @@ fn echo2(st: A): Unit = {
 fn createSt(x: Int): A = {
     var b: Boolean
     b = x == 10
-    new A(foo : b, bar : x)
+    new A(foo := b, bar := x)
 }
 
 var st = createSt(10)
@@ -19,4 +19,10 @@ st.bar = 13
 
 echo(st)
 echo2(st)
-echo(new A(false, bar : 14))
+
+echo(new A(bar := 14, foo := false))
+
+echo(new A(true, bar := {
+    var x = 3
+    x = x + 1
+}))
