@@ -3,7 +3,7 @@ package ru.avhaliullin.whatever
 import java.io.{File, FilenameFilter}
 
 import ru.avhaliullin.whatever.syntax.{Parser, SyntaxTreeNode}
-import ru.avhaliullin.whatever.common.ClassName
+import ru.avhaliullin.whatever.common.{PrettyPrint, ClassName}
 import ru.avhaliullin.whatever.bytecode.{StructureGenerator, TypedBytecodeGenerator}
 import ru.avhaliullin.whatever.semantic.{TypesStore, ClassConverter}
 
@@ -13,6 +13,7 @@ import scala.io.Source
   * @author avhaliullin
   */
 object CompileTest {
+
   def main(args: Array[String]): Unit = {
     val dir = new File(".")
     dir.list(new FilenameFilter {
@@ -31,7 +32,10 @@ object CompileTest {
             //            val typed = ASTTypeChecker.convert(ast)
             val cc = new ClassConverter
             val (typed, sts) = cc.convert(ast)
-            println(typed)
+
+            val pp = PrettyPrint.Printer()
+            typed.foreach(x => println(pp.print(x.pretty)))
+
             val cn = ClassName(className)
             val tbg = new TypedBytecodeGenerator(cn, sts)
             val clazz = tbg.generateClass(typed)
