@@ -1,12 +1,11 @@
-package ru.avhaliullin.exp
+package ru.avhaliullin.whatever
 
 import java.io.{File, FilenameFilter}
 
-import ru.avhaliullin.exp.ast.ASTNode
-import ru.avhaliullin.exp.common.ClassName
-import ru.avhaliullin.exp.gen.{StructureGenerator, TypedBytecodeGenerator}
-import ru.avhaliullin.exp.parse.Parser
-import ru.avhaliullin.exp.typed.{TypesStore, ClassConverter}
+import ru.avhaliullin.whatever.syntax.{Parser, SyntaxTreeNode}
+import ru.avhaliullin.whatever.common.ClassName
+import ru.avhaliullin.whatever.bytecode.{StructureGenerator, TypedBytecodeGenerator}
+import ru.avhaliullin.whatever.semantic.{TypesStore, ClassConverter}
 
 import scala.io.Source
 
@@ -27,7 +26,7 @@ object CompileTest {
         val pr = p.parse(Source.fromFile(srcName).bufferedReader())
 
         pr match {
-          case p.Success(ast: List[ASTNode], _) =>
+          case p.Success(ast: List[SyntaxTreeNode], _) =>
             println(ast)
             //            val typed = ASTTypeChecker.convert(ast)
             val cc = new ClassConverter

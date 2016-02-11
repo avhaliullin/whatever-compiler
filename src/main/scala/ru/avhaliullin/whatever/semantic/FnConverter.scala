@@ -1,12 +1,13 @@
-package ru.avhaliullin.exp.typed
+package ru.avhaliullin.whatever.semantic
 
-import ru.avhaliullin.exp.ast.ASTNode
+import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode => syn}
+import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem}
 
 /**
   * @author avhaliullin
   */
 class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
-  def convert(code: Seq[ASTNode.Expression], sig: FnSignature): TypedASTNode.FnDefinition = {
+  def convert(code: Seq[syn.Expression], sig: FnSignature): sem.FnDefinition = {
     val blockContext = BlockContext(
       sig.args.map(arg => arg.name -> VarInfo(varIdGen.methodArg(arg.name), arg.tpe)).toMap,
       Map(),
@@ -15,64 +16,64 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
 
     val (typedBlock, bc) = convertBlock(blockContext, code)
     TypeUtils.assertAssignable(typedBlock.tpe, sig.returnType)
-    TypedASTNode.FnDefinition(sig, typedBlock.code)
+    sem.FnDefinition(sig, typedBlock.code)
 
   }
 
-  def convertExpression(bc: BlockContext, expr: ASTNode.Expression): (TypedASTNode.Expression, BlockContext) = {
+  def convertExpression(bc: BlockContext, expr: syn.Expression): (sem.Expression, BlockContext) = {
     expr match {
-      case block: ASTNode.Block =>
+      case block: syn.Block =>
         val (expr, nestedCtx) = convertBlock(bc.nestedBlock(), block.exprs)
         expr -> bc.withBlockApplied(nestedCtx)
 
-      case ASTNode.IntConst(value) => TypedASTNode.IntConst(value) -> bc
-      case ASTNode.BoolConst(value) => TypedASTNode.BoolConst(value) -> bc
+      case syn.IntConst(value) => sem.IntConst(value) -> bc
+      case syn.BoolConst(value) => sem.BoolConst(value) -> bc
 
-      case ASTNode.Variable(name) =>
+      case syn.Variable(name) =>
         bc.getVar(name) match {
           case None => throw new RuntimeException(s"Variable $name is not defined")
           case Some(varInfo) =>
             if (!bc.assigned(varInfo.id)) {
               throw new RuntimeException(s"Variable $name can be unassigned")
             }
-            TypedASTNode.VarRead(varInfo.id, varInfo.tpe) -> bc
+            sem.VarRead(varInfo.id, varInfo.tpe) -> bc
         }
 
-      case ASTNode.UnaryOperator(arg, op) =>
+      case syn.UnaryOperator(arg, op) =>
         val (typedArg, newBc) = convertExpression(bc, arg)
-        TypedASTNode.UOperator(typedArg, Operator(typedArg.tpe, op)) -> newBc
+        sem.UOperator(typedArg, Operator(typedArg.tpe, op)) -> newBc
 
-      case ASTNode.BinaryOperator(l, r, op) =>
+      case syn.BinaryOperator(l, r, op) =>
         val (typedArg1, bc1) = convertExpression(bc, l)
         val (typedArg2, bc2) = convertExpression(bc1, r)
 
-        TypedASTNode.BOperator(typedArg1, typedArg2, Operator(typedArg1.tpe, typedArg2.tpe, op)) -> bc2
+        sem.BOperator(typedArg1, typedArg2, Operator(typedArg1.tpe, typedArg2.tpe, op)) -> bc2
 
-      case ASTNode.Echo(arg) =>
+      case syn.Echo(arg) =>
         val (typedArg, newBc) = convertExpression(bc, arg)
         if (typedArg.tpe == Tpe.UNIT) {
           throw new RuntimeException("Cannot apply echo to unit expression")
         }
-        TypedASTNode.Echo(typedArg) -> newBc
+        sem.Echo(typedArg) -> newBc
 
-      case ASTNode.Assignment(assignee, value) =>
+      case syn.Assignment(assignee, value) =>
         val (typedValue, newBc) = convertExpression(bc, value)
         assignee match {
-          case ASTNode.Variable(name) =>
+          case syn.Variable(name) =>
             bc.getVar(name) match {
               case None => throw new RuntimeException(s"Assignment to undefined variable $assignee")
               case Some(varInfo) =>
                 TypeUtils.assertAssignable(typedValue.tpe, varInfo.tpe)
-                TypedASTNode.VarAssignment(varInfo.id, typedValue, read = true) -> newBc.assign(varInfo.id)
+                sem.VarAssignment(varInfo.id, typedValue, read = true) -> newBc.assign(varInfo.id)
             }
-          case ASTNode.FieldAccess(name, stExpr) =>
+          case syn.FieldAccess(name, stExpr) =>
             val (typedStExpr, newBc) = convertExpression(bc, stExpr)
             typedStExpr.tpe match {
               case Tpe.Struct(sName) =>
                 val st = ts.getStruct(sName)
                 val field = st.fieldsMap.getOrElse(name, throw new RuntimeException(s"Type $typedStExpr doesn't have member $name"))
                 TypeUtils.assertAssignable(typedValue.tpe, field.tpe)
-                TypedASTNode.FieldAssignment(TypedASTNode.FieldAccess(field, st, typedStExpr), typedValue, true) -> newBc
+                sem.FieldAssignment(sem.FieldAccess(field, st, typedStExpr), typedValue, true) -> newBc
               case other =>
                 throw new RuntimeException(s"Type $typedStExpr doesn't have member $name")
             }
@@ -80,15 +81,15 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
             throw new RuntimeException(s"Left-side part of expression is not assignable: $other")
         }
 
-      case ASTNode.VarDefinition(name, tpeName) =>
+      case syn.VarDefinition(name, tpeName) =>
         if (bc.localVars.contains(name)) {
           throw new RuntimeException(s"Variable $name already defined in scope")
         }
         val tpe = ts.getPassable(tpeName)
         val varId = varIdGen.nextVar(name)
-        TypedASTNode.VarDefinition(varId, tpe) -> bc.define(VarInfo(varId, tpe))
+        sem.VarDefinition(varId, tpe) -> bc.define(VarInfo(varId, tpe))
 
-      case ASTNode.VarDefinitionWithAssignment(name, rawTpeOpt, rawExpr) =>
+      case syn.VarDefinitionWithAssignment(name, rawTpeOpt, rawExpr) =>
         val (typedExpr, newBc) = convertExpression(bc, rawExpr)
         val tpeOpt = rawTpeOpt.map(ts.getPassable)
         tpeOpt.foreach(TypeUtils.assertAssignable(typedExpr.tpe, _))
@@ -97,32 +98,32 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
           throw new RuntimeException(s"Variable $name already defined in scope")
         }
         val varId = varIdGen.nextVar(name)
-        TypedASTNode.Block(Seq(
-          TypedASTNode.VarDefinition(varId, tpe),
-          TypedASTNode.VarAssignment(varId, typedExpr, true)
+        sem.Block(Seq(
+          sem.VarDefinition(varId, tpe),
+          sem.VarAssignment(varId, typedExpr, true)
         ), tpe) -> newBc.define(VarInfo(varId, tpe)).assign(varId)
 
-      case ASTNode.FieldAccess(name, stExpr) =>
+      case syn.FieldAccess(name, stExpr) =>
         val (typedStExpr, newBc) = convertExpression(bc, stExpr)
         typedStExpr.tpe match {
           case Tpe.Struct(sName) =>
             val st = ts.getStruct(sName)
             val field = st.fieldsMap.getOrElse(name, throw new RuntimeException(s"Type $typedStExpr doesn't have member $name"))
-            TypedASTNode.FieldAccess(field, st, typedStExpr) -> newBc
+            sem.FieldAccess(field, st, typedStExpr) -> newBc
           case other =>
             throw new RuntimeException(s"Type $typedStExpr doesn't have member $name")
         }
 
-      case ASTNode.FnCall(name, args) =>
-        val (typedArgs, newBc) = args.foldLeft((Vector[TypedASTNode.Expression](), bc)) {
+      case syn.FnCall(name, args) =>
+        val (typedArgs, newBc) = args.foldLeft((Vector[sem.Expression](), bc)) {
           case ((argsHead, bc), arg) =>
             val (typedArg, newBc) = convertExpression(bc, arg)
             (argsHead :+ typedArg, newBc)
         }
         val fnSig = fs.find(name, typedArgs.map(_.tpe))
-        TypedASTNode.FnCall(fnSig, typedArgs) -> newBc
+        sem.FnCall(fnSig, typedArgs) -> newBc
 
-      case ASTNode.IfBlock(cond, thenBlock, elseBlock) =>
+      case syn.IfBlock(cond, thenBlock, elseBlock) =>
         val (condTyped, afterCondCtx) = convertExpression(bc, cond)
         if (condTyped.tpe != Tpe.BOOL) {
           throw new RuntimeException(s"If condition should be boolean type expression, found ${condTyped.tpe}")
@@ -135,15 +136,15 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
         } else {
           (thenBlockTyped, elseBlockTyped)
         }
-        TypedASTNode.IfExpr(condTyped, thenBlockFinal, elseBlockFinal, tpe) -> branch1Ctx.merge(branch2Ctx)
+        sem.IfExpr(condTyped, thenBlockFinal, elseBlockFinal, tpe) -> branch1Ctx.merge(branch2Ctx)
 
-      case ASTNode.StructInstantiation(name, args) =>
-        import ASTNode.Argument._
+      case syn.StructInstantiation(name, args) =>
+        import syn.Argument._
         val struct = ts.getStruct(name)
         if (args.size != struct.fields.size) {
           throw new RuntimeException(s"Cannot instantiate structure $name - expected ${struct.fields.size} arguments, passed ${args.size}")
         }
-        val (byNameExprs, _) = args.zipWithIndex.foldLeft((IndexedSeq[ASTNode.Argument.ByName](), false)) {
+        val (byNameExprs, _) = args.zipWithIndex.foldLeft((IndexedSeq[syn.Argument.ByName](), false)) {
           case ((head, byName), (it, idx)) =>
             it match {
               case ByOrder(value) =>
@@ -159,12 +160,12 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
         val name2Expr = byNameExprs.zipWithIndex.map {
           case (ByName(name, e), i) => name ->(e, i)
         }.toMap
-        val (exprs, evalOrder) = struct.fields.foldLeft((IndexedSeq[ASTNode.Expression](), Seq[Int]())) {
+        val (exprs, evalOrder) = struct.fields.foldLeft((IndexedSeq[syn.Expression](), Seq[Int]())) {
           case ((exprs, order), field) =>
             val (expr, invocationIdx) = name2Expr.getOrElse(field.name, throw new RuntimeException(s"Field ${field.name} wasn't assigned"))
             (exprs :+ expr, order :+ invocationIdx)
         }
-        val (typedExprs, newCtx) = exprs.zip(struct.fields).foldLeft((Seq[TypedASTNode.Expression](), bc)) {
+        val (typedExprs, newCtx) = exprs.zip(struct.fields).foldLeft((Seq[sem.Expression](), bc)) {
           case ((head, ctx), (it, f)) =>
             val (e, newCtx) = convertExpression(ctx, it)
             if (!TypeUtils.isAssignable(e.tpe, f.tpe)) {
@@ -172,24 +173,24 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
             }
             (head :+ e, newCtx)
         }
-        TypedASTNode.StructureInstantiation(struct, typedExprs.toIndexedSeq, evalOrder) -> newCtx
+        sem.StructureInstantiation(struct, typedExprs.toIndexedSeq, evalOrder) -> newCtx
     }
   }
 
-  def convertBlock(bc: BlockContext, exprs: Seq[ASTNode.Expression]): (TypedASTNode.Block, BlockContext) = {
+  def convertBlock(bc: BlockContext, exprs: Seq[syn.Expression]): (sem.Block, BlockContext) = {
     if (exprs.isEmpty) {
-      TypedASTNode.Block(Nil, Tpe.UNIT) -> bc
+      sem.Block(Nil, Tpe.UNIT) -> bc
     } else {
       val body = exprs.dropRight(1)
       val last = exprs.last
-      val (typedExprs, newCtx) = body.foldLeft((Vector[TypedASTNode.Expression](), bc)) {
+      val (typedExprs, newCtx) = body.foldLeft((Vector[sem.Expression](), bc)) {
         case ((head, ctx), raw) =>
           val (typedExpr, newCtx) = convertExpression(ctx, raw)
           (head :+ typedExpr.mute, newCtx)
       }
       val (lastTyped, lastCtx) = convertExpression(newCtx, last)
       val tpe = lastTyped.tpe
-      TypedASTNode.Block(typedExprs :+ lastTyped, tpe) -> lastCtx
+      sem.Block(typedExprs :+ lastTyped, tpe) -> lastCtx
     }
   }
 

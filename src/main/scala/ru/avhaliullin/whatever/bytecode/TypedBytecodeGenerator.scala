@@ -1,11 +1,12 @@
-package ru.avhaliullin.exp.gen
+package ru.avhaliullin.whatever.bytecode
 
 import org.apache.bcel.Constants
 import org.apache.bcel.Constants._
 import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.generic._
-import ru.avhaliullin.exp.common.ClassName
-import ru.avhaliullin.exp.typed._
+import ru.avhaliullin.whatever.common.ClassName
+import ru.avhaliullin.whatever.semantic._
+import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem}
 
 /**
   * @author avhaliullin
@@ -104,13 +105,13 @@ class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
     }
   }
 
-  def generateBoolExpr(ctx: MethodContext, arg1: TypedASTNode.Expression, arg2: TypedASTNode.Expression, bInst: BranchInstruction): Unit = {
+  def generateBoolExpr(ctx: MethodContext, arg1: sem.Expression, arg2: sem.Expression, bInst: BranchInstruction): Unit = {
     generateForNode(ctx, arg1)
     generateForNode(ctx, arg2)
     generateBranching(ctx, bInst, Some(new InstructionList(ctx.PUSH(0))), Some(new InstructionList(ctx.PUSH(1))))
   }
 
-  def generateIf(ctx: MethodContext, cond: TypedASTNode.Expression, thenIl: Option[InstructionList], elseIl: Option[InstructionList]): Unit = {
+  def generateIf(ctx: MethodContext, cond: sem.Expression, thenIl: Option[InstructionList], elseIl: Option[InstructionList]): Unit = {
     cond match {
       case BranchInliner(inliner) =>
         inliner.inline(ctx, thenIl, elseIl)
@@ -122,8 +123,8 @@ class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
 
   }
 
-  def generateForNode(ctx: MethodContext, node: TypedASTNode.Expression): Unit = {
-    import TypedASTNode._
+  def generateForNode(ctx: MethodContext, node: sem.Expression): Unit = {
+    import sem._
 
     def trivialBinOp(arg1: Expression, arg2: Expression, inst: Instruction): Unit = {
       generateForNode(ctx, arg1)
@@ -309,17 +310,17 @@ class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
     }
   }
 
-  def generateBlock(ctx: MethodContext, code: Seq[TypedASTNode.Expression]): Unit = {
+  def generateBlock(ctx: MethodContext, code: Seq[sem.Expression]): Unit = {
     code.foreach(generateForNode(ctx, _))
   }
 
-  def generateClass(ast: Seq[TypedASTNode.FnDefinition]): JavaClass = {
+  def generateClass(ast: Seq[sem.FnDefinition]): JavaClass = {
     val cg = new ClassGen(className.name, "java.lang.Object", "<generated>", ACC_PUBLIC | ACC_SUPER, null)
     val cp = cg.getConstantPool
 
     val instFactory = new InstructionFactory(cg)
 
-    def generateMethod(code: Seq[TypedASTNode.Expression], name: String, args: Seq[(String, Type)], retType: Type): Unit = {
+    def generateMethod(code: Seq[sem.Expression], name: String, args: Seq[(String, Type)], retType: Type): Unit = {
       val il = new InstructionList()
 
       val mg = new MethodGen(
@@ -340,7 +341,7 @@ class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
     }
 
     ast.foreach {
-      case TypedASTNode.FnDefinition(sig, code) =>
+      case sem.FnDefinition(sig, code) =>
         generateMethod(code, sig.name, sig.args.map(arg => (arg.name, jtg.toJavaType(arg.tpe))), jtg.toJavaType(sig.returnType))
     }
 
@@ -352,9 +353,9 @@ class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
   }
 
   object BranchInliner {
-    def unapply(e: TypedASTNode.Expression): Option[BranchInliner] = {
+    def unapply(e: sem.Expression): Option[BranchInliner] = {
       e match {
-        case TypedASTNode.BOperator(e1, e2, op) =>
+        case sem.BOperator(e1, e2, op) =>
           val instOp = op match {
             case Operator.ILT => Some(new IF_ICMPLT(null))
             case Operator.ILE => Some(new IF_ICMPLE(null))

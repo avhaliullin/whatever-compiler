@@ -1,6 +1,7 @@
-package ru.avhaliullin.exp.typed
+package ru.avhaliullin.whatever.semantic
 
-import ru.avhaliullin.exp.ast.ASTNode
+import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode => syn}
+import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem}
 
 /**
   * @author avhaliullin
@@ -8,13 +9,13 @@ import ru.avhaliullin.exp.ast.ASTNode
 class ClassConverter {
   private val mainSig = FnSignature("main", Seq(FnSignature.Arg("args", Tpe.ARGS)), Tpe.UNIT)
 
-  def convert(ast: Seq[ASTNode]): (Seq[TypedASTNode.FnDefinition], Seq[Structure]) = {
+  def convert(ast: Seq[syn]): (Seq[sem.FnDefinition], Seq[Structure]) = {
     val structs = ast.collect {
-      case st: ASTNode.StructDefinition => st
+      case st: syn.StructDefinition => st
     }
 
     val fns = ast.collect {
-      case fn: ASTNode.FnDefinition => fn
+      case fn: syn.FnDefinition => fn
     }
 
     val sa = new StructAnalyzer
@@ -25,7 +26,7 @@ class ClassConverter {
     val (fnName2Fns, fnRawSig2Typed) = fa.generateFnSigs(fns)
 
     val exprs = ast.collect {
-      case expr: ASTNode.Expression => expr
+      case expr: syn.Expression => expr
     }
 
     val fnStore = new FnStore(fnName2Fns)

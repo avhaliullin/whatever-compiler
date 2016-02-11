@@ -1,11 +1,11 @@
-package ru.avhaliullin.exp.gen
+package ru.avhaliullin.whatever.bytecode
 
 import org.apache.bcel.Constants
 import org.apache.bcel.Constants._
 import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.generic._
-import ru.avhaliullin.exp.common.ClassName
-import ru.avhaliullin.exp.typed.{JavaTypeGen, Structure, TypesStore}
+import ru.avhaliullin.whatever.common.ClassName
+import ru.avhaliullin.whatever.semantic.{JavaTypeGen, Structure, TypesStore}
 
 /**
   * @author avhaliullin

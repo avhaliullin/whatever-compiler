@@ -1,12 +1,12 @@
-package ru.avhaliullin.exp.typed
+package ru.avhaliullin.whatever.semantic
 
-import ru.avhaliullin.exp.ast.ASTNode
+import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode => syn}
 
 /**
   * @author avhaliullin
   */
 class StructAnalyzer {
-  def convertStructures(nodes: Seq[ASTNode.StructDefinition]): Map[String, Structure] = {
+  def convertStructures(nodes: Seq[syn.StructDefinition]): Map[String, Structure] = {
     val name2Node = nodes.map(sd => sd.name -> sd).toMap
     name2Node.mapValues {
       sd =>

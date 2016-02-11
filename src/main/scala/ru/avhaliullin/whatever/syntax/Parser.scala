@@ -1,7 +1,6 @@
-package ru.avhaliullin.exp.parse
+package ru.avhaliullin.whatever.syntax
 
-import ru.avhaliullin.exp.ast.ASTNode
-import ru.avhaliullin.exp.ast.ASTNode._
+import ru.avhaliullin.whatever.syntax.SyntaxTreeNode._
 
 import scala.util.parsing.combinator.JavaTokenParsers
 
@@ -40,8 +39,8 @@ class Parser extends JavaTokenParsers {
 
   private def argList = "(" ~>
     repsep((literal <~ ":=").? ~ expr ^^ {
-      case Some(name) ~ value => ASTNode.Argument.ByName(name, value)
-      case None ~ value => ASTNode.Argument.ByOrder(value)
+      case Some(name) ~ value => Argument.ByName(name, value)
+      case None ~ value => Argument.ByOrder(value)
     }, ",") <~ ")"
 
   private def fCall = fnName ~ ("(" ~> repsep(expr, ",") <~ ")") ^^ {
@@ -51,7 +50,7 @@ class Parser extends JavaTokenParsers {
 
   private def sInstantiation = "new" ~> typeName ~ argList ^^ {
     case tName ~ args =>
-      ASTNode.StructInstantiation(tName, args)
+      StructInstantiation(tName, args)
   }
 
 
@@ -60,7 +59,7 @@ class Parser extends JavaTokenParsers {
 
       fields.foldLeft(e) {
         (acc, it) =>
-          ASTNode.FieldAccess(it, acc)
+          FieldAccess(it, acc)
       }
     case e ~ None => e
   }
@@ -116,7 +115,7 @@ class Parser extends JavaTokenParsers {
     case assignee ~ value =>
       (assignee :: value).reduceRight {
         (assignee, value) =>
-          ASTNode.Assignment(assignee, value)
+          Assignment(assignee, value)
       }
   }
 
@@ -132,7 +131,7 @@ class Parser extends JavaTokenParsers {
     case name ~ tpeOpt ~ Some(ass) => VarDefinitionWithAssignment(name, tpeOpt, ass)
   }
 
-  private val echo = "echo" ~> "(" ~> expr <~ ")" ^^ ASTNode.Echo
+  private val echo = "echo" ~> "(" ~> expr <~ ")" ^^ Echo
 
   private def block: Parser[Block] = "{" ~> rep(statement) <~ "}" ^^ Block
 
@@ -166,7 +165,7 @@ class Parser extends JavaTokenParsers {
       StructDefinition(typeName, fields)
   }
 
-  private val parser: Parser[List[ASTNode]] = rep(structDefinition | fnDefinition | statement)
+  private val parser: Parser[List[SyntaxTreeNode]] = rep(structDefinition | fnDefinition | statement)
 
   def parse(r: java.io.Reader) = parseAll(parser, r)
 }

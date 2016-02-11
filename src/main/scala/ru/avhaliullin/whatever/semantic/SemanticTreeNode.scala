@@ -1,17 +1,17 @@
-package ru.avhaliullin.exp.typed
+package ru.avhaliullin.whatever.semantic
 
 /**
   * @author avhaliullin
   */
-sealed trait TypedASTNode {
+sealed trait SemanticTreeNode {
 
 }
 
-object TypedASTNode {
+object SemanticTreeNode {
 
-  sealed trait Definition extends TypedASTNode
+  sealed trait Definition extends SemanticTreeNode
 
-  sealed trait Expression extends TypedASTNode {
+  sealed trait Expression extends SemanticTreeNode {
     def tpe: Tpe
 
     def mute: Expression
@@ -52,7 +52,7 @@ object TypedASTNode {
     def mute = Nop
   }
 
-  case class Block(code: Seq[TypedASTNode.Expression], tpe: Tpe) extends Expression {
+  case class Block(code: Seq[SemanticTreeNode.Expression], tpe: Tpe) extends Expression {
     def mute = {
       if (tpe == Tpe.UNIT) {
         this
@@ -72,7 +72,7 @@ object TypedASTNode {
 
   case class StructureDefinition(desc: Structure) extends Definition
 
-  case class FnDefinition(sig: FnSignature, code: Seq[TypedASTNode.Expression]) extends Definition
+  case class FnDefinition(sig: FnSignature, code: Seq[SemanticTreeNode.Expression]) extends Definition
 
   case class FnCall(sig: FnSignature, args: Seq[Expression]) extends Expression {
     override def tpe: Tpe = sig.returnType

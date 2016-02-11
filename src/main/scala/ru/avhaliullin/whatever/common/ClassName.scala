@@ -1,4 +1,4 @@
-package ru.avhaliullin.exp.common
+package ru.avhaliullin.whatever.common
 
 /**
   * @author avhaliullin

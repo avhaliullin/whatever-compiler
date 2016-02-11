@@ -1,12 +1,12 @@
-package ru.avhaliullin.exp.typed
+package ru.avhaliullin.whatever.semantic
 
-import ru.avhaliullin.exp.ast.ASTNode
+import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode => syn}
 
 /**
   * @author avhaliullin
   */
 class FnAnalyzer(ts: TypesStore) {
-  def convertSignature(sig: ASTNode.FnDefinition.Signature): FnSignature = {
+  def convertSignature(sig: syn.FnDefinition.Signature): FnSignature = {
     FnSignature(
       sig.name,
       sig.args.map(arg => FnSignature.Arg(arg.name, ts.getPassable(arg.tpe))),
@@ -14,9 +14,9 @@ class FnAnalyzer(ts: TypesStore) {
     )
   }
 
-  def generateFnSigs(raw: Seq[ASTNode.Definition]): (Map[String, Set[FnSignature]], Map[ASTNode.FnDefinition, FnSignature]) = {
+  def generateFnSigs(raw: Seq[syn.Definition]): (Map[String, Set[FnSignature]], Map[syn.FnDefinition, FnSignature]) = {
     val name2Fns = raw.collect {
-      case rawDef@ASTNode.FnDefinition(sig, _) => convertSignature(sig) -> rawDef
+      case rawDef@syn.FnDefinition(sig, _) => convertSignature(sig) -> rawDef
     }.groupBy(_._1.name)
 
     val name2FnsSet = name2Fns.mapValues {

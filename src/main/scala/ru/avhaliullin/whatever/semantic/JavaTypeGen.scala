@@ -1,7 +1,7 @@
-package ru.avhaliullin.exp.typed
+package ru.avhaliullin.whatever.semantic
 
 import org.apache.bcel.generic.{ArrayType, ObjectType, Type}
-import ru.avhaliullin.exp.common.ClassName
+import ru.avhaliullin.whatever.common.ClassName
 
 /**
   * @author avhaliullin

@@ -1,20 +1,20 @@
-package ru.avhaliullin.exp.ast
+package ru.avhaliullin.whatever.syntax
 
 /**
   * @author avhaliullin
   */
-sealed trait ASTNode {
+sealed trait SyntaxTreeNode {
   def isDefinition: Boolean = false
 }
 
-object ASTNode {
+object SyntaxTreeNode {
 
-  sealed trait Definition extends ASTNode {
+  sealed trait Definition extends SyntaxTreeNode {
     override def isDefinition = true
   }
 
 
-  sealed trait Expression extends ASTNode
+  sealed trait Expression extends SyntaxTreeNode
 
   sealed trait Const extends Expression
 
@@ -46,7 +46,7 @@ object ASTNode {
 
   case class FnCall(name: String, args: Seq[Expression]) extends Expression
 
-  case class FnDefinition(signature: FnDefinition.Signature, code: List[Expression]) extends ASTNode with Definition
+  case class FnDefinition(signature: FnDefinition.Signature, code: List[Expression]) extends SyntaxTreeNode with Definition
 
   object FnDefinition {
 
@@ -58,7 +58,7 @@ object ASTNode {
 
   case class StructInstantiation(name: String, args: Seq[Argument]) extends Expression
 
-  case class StructDefinition(name: String, fields: Seq[StructDefinition.Field]) extends ASTNode with Definition
+  case class StructDefinition(name: String, fields: Seq[StructDefinition.Field]) extends SyntaxTreeNode with Definition
 
   object StructDefinition {
 
@@ -67,14 +67,14 @@ object ASTNode {
   }
 
   sealed trait Argument {
-    def value: ASTNode.Expression
+    def value: SyntaxTreeNode.Expression
   }
 
   object Argument {
 
-    case class ByName(name: String, value: ASTNode.Expression) extends Argument
+    case class ByName(name: String, value: SyntaxTreeNode.Expression) extends Argument
 
-    case class ByOrder(value: ASTNode.Expression) extends Argument
+    case class ByOrder(value: SyntaxTreeNode.Expression) extends Argument
 
   }
 
