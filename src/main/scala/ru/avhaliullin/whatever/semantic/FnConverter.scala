@@ -1,7 +1,7 @@
 package ru.avhaliullin.whatever.semantic
 
-import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode => syn}
 import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem}
+import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode => syn}
 
 /**
   * @author avhaliullin
@@ -28,6 +28,7 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
 
       case syn.IntConst(value) => sem.IntConst(value) -> bc
       case syn.BoolConst(value) => sem.BoolConst(value) -> bc
+      case syn.StringConst(value) => sem.StringConst(value) -> bc
 
       case syn.Variable(name) =>
         bc.getVar(name) match {

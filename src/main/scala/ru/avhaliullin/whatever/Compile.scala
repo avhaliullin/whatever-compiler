@@ -2,7 +2,7 @@ package ru.avhaliullin.whatever
 
 import java.io.File
 
-import ru.avhaliullin.whatever.bytecode.{StructureGenerator, TypedBytecodeGenerator}
+import ru.avhaliullin.whatever.bytecode.{StructureGenerator, ClassBytecodeGenerator}
 import ru.avhaliullin.whatever.common.{PrettyPrint, ClassName}
 import ru.avhaliullin.whatever.semantic.{ClassConverter, TypesStore}
 import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode, Parser}
@@ -50,7 +50,7 @@ object Compile {
             typed.foreach(x => println(pp.print(x.pretty)))
 
             val cn = ClassName(className)
-            val tbg = new TypedBytecodeGenerator(cn, sts)
+            val tbg = new ClassBytecodeGenerator(cn, sts)
             val clazz = tbg.generateClass(typed)
             val sg = new StructureGenerator(cn, new TypesStore(sts.map(st => st.name -> st).toMap))
 

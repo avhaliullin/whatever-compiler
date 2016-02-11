@@ -26,6 +26,7 @@ class JavaTypeGen(className: ClassName) {
       case Tpe.UNIT => Type.VOID
       case Tpe.ARGS => new ArrayType(Type.STRING, 1)
       case Tpe.Struct(name) => new ObjectType(className.name + "$" + name)
+      case Tpe.STRING => Type.STRING
     }
   }
 

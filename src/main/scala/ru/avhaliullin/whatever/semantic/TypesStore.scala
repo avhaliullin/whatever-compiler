@@ -12,7 +12,7 @@ class TypesStore(structs: Map[String, Structure]) {
   }
 
   def getAny(name: String): Tpe = {
-    Tpe.getOpt(name).getOrElse(if (structs.contains(name)) Tpe.Struct(name) else throw new RuntimeException(s"Unknown type $name"))
+    Tpe.getPrimitiveOpt(name).getOrElse(if (structs.contains(name)) Tpe.Struct(name) else throw new RuntimeException(s"Unknown type $name"))
   }
 
   def getStruct(name: String): Structure = structs(name)

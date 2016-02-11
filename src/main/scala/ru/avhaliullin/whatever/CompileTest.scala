@@ -4,7 +4,7 @@ import java.io.{File, FilenameFilter}
 
 import ru.avhaliullin.whatever.syntax.{Parser, SyntaxTreeNode}
 import ru.avhaliullin.whatever.common.{PrettyPrint, ClassName}
-import ru.avhaliullin.whatever.bytecode.{StructureGenerator, TypedBytecodeGenerator}
+import ru.avhaliullin.whatever.bytecode.{StructureGenerator, ClassBytecodeGenerator}
 import ru.avhaliullin.whatever.semantic.{TypesStore, ClassConverter}
 
 import scala.io.Source
@@ -37,7 +37,7 @@ object CompileTest {
             typed.foreach(x => println(pp.print(x.pretty)))
 
             val cn = ClassName(className)
-            val tbg = new TypedBytecodeGenerator(cn, sts)
+            val tbg = new ClassBytecodeGenerator(cn, sts)
             val clazz = tbg.generateClass(typed)
             val sg = new StructureGenerator(cn, new TypesStore(sts.map(st => st.name -> st).toMap))
 

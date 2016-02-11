@@ -22,6 +22,8 @@ object SyntaxTreeNode {
 
   case class BoolConst(value: Boolean) extends Const
 
+  case class StringConst(value: String) extends Const
+
   case class Variable(name: String) extends Expression
 
   case class BinaryOperator(l: Expression, r: Expression, op: String) extends Expression {

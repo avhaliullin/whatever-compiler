@@ -157,6 +157,12 @@ object SemanticTreeNode {
     def literal = value.toString
   }
 
+  case class StringConst(value:String) extends Const {
+    val tpe = Tpe.STRING
+
+    def literal = value
+  }
+
   case class IfExpr(cond: Expression, thenBlock: Expression, elseBlock: Expression, tpe: Tpe) extends Expression {
     def mute = {
       if (tpe == Tpe.UNIT) {

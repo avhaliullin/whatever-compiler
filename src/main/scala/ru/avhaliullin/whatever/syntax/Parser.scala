@@ -22,7 +22,11 @@ class Parser extends JavaTokenParsers {
 
   private val boolConst = ("true" ^^ (_ => true) | "false" ^^ (_ => false)) ^^ BoolConst
 
-  private val const = intConst | boolConst
+  private val stringConst = stringLiteral ^^ {
+    case s => StringConst(s.substring(1, s.length - 1))
+  }
+
+  private val const = intConst | boolConst | stringConst
 
   private def binOp(arg: ~[Expression, List[~[String, Expression]]]): Expression = {
     val ~(zero, rest) = arg

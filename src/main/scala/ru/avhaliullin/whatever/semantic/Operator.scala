@@ -25,6 +25,8 @@ object Operator {
 
   protected sealed abstract class BinOp(val literal: String) extends BinaryOperator
 
+  protected sealed abstract class AbstractBinOp(literal: String, val arg1Type: Tpe, val arg2Type: Tpe, val retType: Tpe) extends BinOp(literal)
+
   object BinarySelector {
 
     sealed trait X_X_Int extends BinaryOperator {
@@ -95,6 +97,8 @@ object Operator {
 
   case object BOR_LZY extends BinOp("||") with Bool_Bool_Bool
 
+  case object CONCAT extends AbstractBinOp("+", Tpe.STRING, Tpe.STRING, Tpe.STRING)
+
   private val binOps: Map[(Tpe, Tpe, String), BinaryOperator] =
     Seq(
       IADD,
@@ -114,7 +118,9 @@ object Operator {
       BXOR,
 
       BAND_LZY,
-      BOR_LZY
+      BOR_LZY,
+
+      CONCAT
     ).map(op => (op.arg1Type, op.arg2Type, op.literal) -> op).toMap
 
   def apply(lTpe: Tpe, rTpe: Tpe, name: String): BinaryOperator = {

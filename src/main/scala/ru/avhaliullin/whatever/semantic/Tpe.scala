@@ -25,17 +25,22 @@ object Tpe {
     val name = "Unit"
   }
 
-  case object ARGS extends Predefined with Passable{
+  case object STRING extends Predefined with Passable {
+    val name = "String"
+  }
+
+  case object ARGS extends Predefined with Passable {
     val name = "String[]"
   }
 
   case class Struct(name: String) extends Tpe with Passable
 
-  def getOpt(name: String): Option[Tpe] = {
+  def getPrimitiveOpt(name: String): Option[Tpe] = {
     name match {
       case "Int" => Some(INT)
       case "Boolean" => Some(BOOL)
       case "Unit" => Some(UNIT)
+      case "String" => Some(STRING)
       case _ => None
     }
   }

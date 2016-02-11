@@ -10,7 +10,7 @@ import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem, _}
 /**
   * @author avhaliullin
   */
-class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
+class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
 
   private val structName2Struct = structs.map(st => st.name -> st).toMap
   private val jtg = new JavaTypeGen(className)
@@ -247,6 +247,17 @@ class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
           case Operator.IGE => generateBoolExpr(ctx, arg1, arg2, new IF_ICMPGE(null))
           case Operator.IEQ => generateBoolExpr(ctx, arg1, arg2, new IF_ICMPEQ(null))
           case Operator.INE => generateBoolExpr(ctx, arg1, arg2, new IF_ICMPNE(null))
+
+          case Operator.CONCAT =>
+            generateForNode(ctx, arg1)
+            generateForNode(ctx, arg2)
+            ctx.il.append(ctx.instF.createInvoke(
+              Type.STRING.getClassName,
+              "concat",
+              Type.STRING,
+              Array(Type.STRING),
+              Constants.INVOKEVIRTUAL
+            ))
         }
 
       case UOperator(arg, op) =>
@@ -264,6 +275,8 @@ class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
           case IntConst(value) =>
             new PUSH(ctx.cpg, value)
           case BoolConst(value) =>
+            new PUSH(ctx.cpg, value)
+          case StringConst(value) =>
             new PUSH(ctx.cpg, value)
         }
         ctx.il.append(inst)

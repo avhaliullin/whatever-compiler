@@ -1,0 +1,11 @@
+struct Record(id: Int, name: String)
+
+fn concatWithRecord(r: Record, nameSuffix: String): String = {
+    r.name + nameSuffix
+}
+
+var r = new Record(id := 11, name := "Hello")
+
+echo(r)
+
+echo(concatWithRecord(r, " world!"))

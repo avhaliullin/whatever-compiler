@@ -14,7 +14,7 @@ class StructAnalyzer {
           sd.name,
           sd.fields.map {
             field =>
-              val fieldTpe = Tpe.getOpt(field.tpe) match {
+              val fieldTpe = Tpe.getPrimitiveOpt(field.tpe) match {
                 case Some(tpe) => tpe
                 case None =>
                   if (!name2Node.contains(field.tpe)) {
