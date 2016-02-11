@@ -142,6 +142,10 @@ class StructureGenerator(className: ClassName, ts: TypesStore) {
       il.dispose()
     }
 
+    // InnerClasses annotation
+    val ic = InnerClassHelper.makeRecord(className.name, st.name, cp)
+    cg.addAttribute(InnerClassHelper.makeAttr(Seq(ic), cp))
+
     cg.getJavaClass
   }
 }

@@ -5,8 +5,7 @@ import org.apache.bcel.Constants._
 import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.generic._
 import ru.avhaliullin.whatever.common.ClassName
-import ru.avhaliullin.whatever.semantic._
-import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem}
+import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem, _}
 
 /**
   * @author avhaliullin
@@ -339,6 +338,9 @@ class TypedBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
       cg.addMethod(mg.getMethod)
       il.dispose()
     }
+
+    val ics = structs.map(s => InnerClassHelper.makeRecord(className.name, s.name, cp))
+    cg.addAttribute(InnerClassHelper.makeAttr(ics, cp))
 
     ast.foreach {
       case sem.FnDefinition(sig, code) =>
