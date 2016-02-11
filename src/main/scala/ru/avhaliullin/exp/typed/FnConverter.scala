@@ -1,7 +1,6 @@
 package ru.avhaliullin.exp.typed
 
 import ru.avhaliullin.exp.ast.ASTNode
-import ru.avhaliullin.exp.ast.ASTNode.StructInstantiation.{ByName, ByOrder}
 
 /**
   * @author avhaliullin
@@ -139,18 +138,19 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
         TypedASTNode.IfExpr(condTyped, thenBlockFinal, elseBlockFinal, tpe) -> branch1Ctx.merge(branch2Ctx)
 
       case ASTNode.StructInstantiation(name, args) =>
+        import ASTNode.Argument._
         val struct = ts.getStruct(name)
         if (args.size != struct.fields.size) {
           throw new RuntimeException(s"Cannot instantiate structure $name - expected ${struct.fields.size} arguments, passed ${args.size}")
         }
-        val (byNameExprs, _) = args.zipWithIndex.foldLeft((IndexedSeq[ASTNode.StructInstantiation.ByName](), false)) {
+        val (byNameExprs, _) = args.zipWithIndex.foldLeft((IndexedSeq[ASTNode.Argument.ByName](), false)) {
           case ((head, byName), (it, idx)) =>
             it match {
               case ByOrder(value) =>
                 if (byName) {
                   throw new RuntimeException(s"You cannot use by-order args after by-name args")
                 }
-                (head :+ ASTNode.StructInstantiation.ByName(struct.fields(idx).name, value)) -> false
+                (head :+ ByName(struct.fields(idx).name, value)) -> false
               case bName: ByName =>
                 (head :+ bName) -> true
             }

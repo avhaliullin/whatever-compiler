@@ -56,25 +56,25 @@ object ASTNode {
 
   }
 
-  case class StructInstantiation(name: String, args: Seq[StructInstantiation.Arg]) extends Expression
-
-  object StructInstantiation {
-
-    sealed trait Arg {
-      def value: Expression
-    }
-
-    case class ByName(name: String, value: Expression) extends Arg
-
-    case class ByOrder(value: Expression) extends Arg
-
-  }
+  case class StructInstantiation(name: String, args: Seq[Argument]) extends Expression
 
   case class StructDefinition(name: String, fields: Seq[StructDefinition.Field]) extends ASTNode with Definition
 
   object StructDefinition {
 
     case class Field(name: String, tpe: String)
+
+  }
+
+  sealed trait Argument {
+    def value: ASTNode.Expression
+  }
+
+  object Argument {
+
+    case class ByName(name: String, value: ASTNode.Expression) extends Argument
+
+    case class ByOrder(value: ASTNode.Expression) extends Argument
 
   }
 

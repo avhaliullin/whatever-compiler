@@ -38,16 +38,18 @@ class Parser extends JavaTokenParsers {
 
   private def par = "(" ~> expr <~ ")"
 
-  private def fCall = fnName ~ "(" ~ repsep(expr, ",") ~ ")" ^^ {
-    case name ~ _ ~ args ~ _ =>
+  private def argList = "(" ~>
+    repsep((literal <~ ":=").? ~ expr ^^ {
+      case Some(name) ~ value => ASTNode.Argument.ByName(name, value)
+      case None ~ value => ASTNode.Argument.ByOrder(value)
+    }, ",") <~ ")"
+
+  private def fCall = fnName ~ ("(" ~> repsep(expr, ",") <~ ")") ^^ {
+    case name ~ args =>
       FnCall(name, args)
   }
 
-  private def sInstantiation = "new" ~> typeName ~ ("(" ~>
-    repsep((literal <~ ":=").? ~ expr ^^ {
-      case Some(name) ~ value => ASTNode.StructInstantiation.ByName(name, value)
-      case None ~ value => ASTNode.StructInstantiation.ByOrder(value)
-    }, ",") <~ ")") ^^ {
+  private def sInstantiation = "new" ~> typeName ~ argList ^^ {
     case tName ~ args =>
       ASTNode.StructInstantiation(tName, args)
   }
