@@ -108,7 +108,7 @@ object SemanticTreeNode {
       }
     }
 
-    def prettyExpr = PrettyPrint.Complex("FnCall(", ")", args.map(_.pretty))
+    def prettyExpr = PrettyPrint.Complex("FnCall(", ")", PrettyPrint.Literal(sig.name) +: args.map(_.pretty))
   }
 
   case class Echo(expr: Expression) extends Statement {
@@ -126,7 +126,7 @@ object SemanticTreeNode {
       }
     }
 
-    def prettyExpr = PrettyPrint.Complex(op + "(", ")", Seq(arg1.pretty, arg2.pretty))
+    def prettyExpr = PrettyPrint.Complex("BinOp-" + op + "(", ")", Seq(arg1.pretty, arg2.pretty))
   }
 
   case class UOperator(arg: Expression, op: UnaryOperator) extends Expression {
@@ -134,7 +134,7 @@ object SemanticTreeNode {
 
     def mute = arg.mute
 
-    def prettyExpr = PrettyPrint.Complex(op + "(", ")", Seq(arg.pretty))
+    def prettyExpr = PrettyPrint.Complex("UnOp-" + op + "(", ")", Seq(arg.pretty))
   }
 
   sealed trait Const extends Expression {
