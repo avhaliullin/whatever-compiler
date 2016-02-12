@@ -9,9 +9,16 @@ import ru.avhaliullin.whatever.common.ClassName
 class JavaTypeGen(className: ClassName) {
 
   def toObjectType(tpe: Tpe): ObjectType = {
-    toJavaType(tpe) match {
+    toJavaFnRetType(tpe) match {
       case ot: ObjectType => ot
       case _ => throw new RuntimeException(s"Type $tpe isn't an object type")
+    }
+  }
+
+  def toArrayType(tpe: Tpe): ArrayType = {
+    toJavaType(tpe) match {
+      case at: ArrayType => at
+      case _ => throw new RuntimeException(s"Type $tpe isn't an array type")
     }
   }
 
@@ -19,21 +26,28 @@ class JavaTypeGen(className: ClassName) {
     new ObjectType(className.name + "$" + s.name)
   }
 
+  def toJavaFnRetType(tpe: Tpe): Type = {
+    _toJavaType(tpe, true)
+  }
+
   def toJavaType(tpe: Tpe): Type = {
+    _toJavaType(tpe, false)
+  }
+
+  private def _toJavaType(tpe: Tpe, fnRetType: Boolean): Type = {
     tpe match {
       case Tpe.BOOL => Type.BOOLEAN
       case Tpe.INT => Type.INT
-      case Tpe.UNIT => Type.VOID
+      case Tpe.UNIT => if (fnRetType) Type.VOID else Type.getType(classOf[Void])
       case Tpe.ARGS => new ArrayType(Type.STRING, 1)
-      case Tpe.Struct(name) => new ObjectType(className.name + "$" + name)
       case Tpe.STRING => Type.STRING
-    }
-  }
 
-  def toPrimitiveOrObject(tpe: Tpe): Type = {
-    toJavaType(tpe) match {
-      case t: ObjectType => Type.OBJECT
-      case other => other
+      case Tpe.Struct(name) => new ObjectType(className.name + "$" + name)
+
+      case Tpe.Arr(elem) =>
+        new ArrayType(toJavaType(elem), 1)
+      case Tpe.ANY =>
+        throw new RuntimeException("Unexpected: 'Any' isn't implemented - should never be met in _toJavaType")
     }
   }
 

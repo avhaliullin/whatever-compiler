@@ -52,13 +52,13 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
 
       case syn.Echo(arg) =>
         val (typedArg, newBc) = convertExpression(bc, arg)
-        if (typedArg.tpe == Tpe.UNIT) {
-          throw new RuntimeException("Cannot apply echo to unit expression")
-        }
         sem.Echo(typedArg) -> newBc
 
       case syn.Assignment(assignee, value) =>
         val (typedValue, newBc) = convertExpression(bc, value)
+        if (typedValue.tpe == Tpe.ANY) {
+          throw new RuntimeException("Assignment of 'Any' is not supported yet")
+        }
         assignee match {
           case syn.Variable(name) =>
             bc.getVar(name) match {
@@ -86,15 +86,18 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
         if (bc.localVars.contains(name)) {
           throw new RuntimeException(s"Variable $name already defined in scope")
         }
-        val tpe = ts.getPassable(tpeName)
+        val tpe = ts.getAny(tpeName)
         val varId = varIdGen.nextVar(name)
         sem.VarDefinition(varId, tpe) -> bc.define(VarInfo(varId, tpe))
 
       case syn.VarDefinitionWithAssignment(name, rawTpeOpt, rawExpr) =>
         val (typedExpr, newBc) = convertExpression(bc, rawExpr)
-        val tpeOpt = rawTpeOpt.map(ts.getPassable)
+        val tpeOpt = rawTpeOpt.map(ts.getAny)
         tpeOpt.foreach(TypeUtils.assertAssignable(typedExpr.tpe, _))
         val tpe = tpeOpt.getOrElse(typedExpr.tpe)
+        if (tpe == Tpe.ANY) {
+          throw new RuntimeException("Assignment of 'Any' is not supported yet")
+        }
         if (bc.localVars.contains(name)) {
           throw new RuntimeException(s"Variable $name already defined in scope")
         }
@@ -132,12 +135,7 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
         val (thenBlockTyped, branch1Ctx) = convertBlock(afterCondCtx, thenBlock)
         val (elseBlockTyped, branch2Ctx) = convertBlock(afterCondCtx, elseBlock)
         val tpe = TypeUtils.getUpperBoundType(thenBlockTyped.tpe, elseBlockTyped.tpe)
-        val (thenBlockFinal, elseBlockFinal) = if (tpe == Tpe.UNIT) {
-          (thenBlockTyped.mute, elseBlockTyped.mute)
-        } else {
-          (thenBlockTyped, elseBlockTyped)
-        }
-        sem.IfExpr(condTyped, thenBlockFinal, elseBlockFinal, tpe) -> branch1Ctx.merge(branch2Ctx)
+        sem.IfExpr(condTyped, thenBlockTyped, elseBlockTyped, tpe) -> branch1Ctx.merge(branch2Ctx)
 
       case syn.StructInstantiation(name, args) =>
         import syn.Argument._

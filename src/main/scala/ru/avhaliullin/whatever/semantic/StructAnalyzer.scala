@@ -8,20 +8,14 @@ import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode => syn}
 class StructAnalyzer {
   def convertStructures(nodes: Seq[syn.StructDefinition]): Map[String, Structure] = {
     val name2Node = nodes.map(sd => sd.name -> sd).toMap
+    val udts = UserDefinedTypes(name2Node.keys)
     name2Node.mapValues {
       sd =>
         Structure(
           sd.name,
           sd.fields.map {
             field =>
-              val fieldTpe = Tpe.getPrimitiveOpt(field.tpe) match {
-                case Some(tpe) => tpe
-                case None =>
-                  if (!name2Node.contains(field.tpe)) {
-                    throw new RuntimeException(s"Struct ${sd.name}: field ${field.name} have unknown type ${field.tpe}")
-                  }
-                  Tpe.Struct(field.tpe)
-              }
+              val fieldTpe = Tpe.getTpe(field.tpe, udts)
               Structure.Field(field.name, fieldTpe)
           }.toIndexedSeq
         )

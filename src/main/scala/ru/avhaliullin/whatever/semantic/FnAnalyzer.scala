@@ -9,7 +9,7 @@ class FnAnalyzer(ts: TypesStore) {
   def convertSignature(sig: syn.FnDefinition.Signature): FnSignature = {
     FnSignature(
       sig.name,
-      sig.args.map(arg => FnSignature.Arg(arg.name, ts.getPassable(arg.tpe))),
+      sig.args.map(arg => FnSignature.Arg(arg.name, ts.getAny(arg.tpe))),
       ts.getAny(sig.returnT)
     )
   }

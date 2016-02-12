@@ -40,9 +40,9 @@ object SyntaxTreeNode {
 
   case class FieldAccess(name: String, expr: Expression) extends Expression
 
-  case class VarDefinition(name: String, tpe: String) extends Expression
+  case class VarDefinition(name: String, tpe: TypeExpression) extends Expression
 
-  case class VarDefinitionWithAssignment(name: String, tpe: Option[String], expr: Expression) extends Expression
+  case class VarDefinitionWithAssignment(name: String, tpe: Option[TypeExpression], expr: Expression) extends Expression
 
   case class IfBlock(cond: Expression, thenBlock: Seq[Expression], elseBlock: Seq[Expression]) extends Expression
 
@@ -52,9 +52,9 @@ object SyntaxTreeNode {
 
   object FnDefinition {
 
-    case class Signature(name: String, returnT: String, args: Seq[FnDefinition.Arg])
+    case class Signature(name: String, returnT: TypeExpression, args: Seq[FnDefinition.Arg])
 
-    case class Arg(name: String, tpe: String)
+    case class Arg(name: String, tpe: TypeExpression)
 
   }
 
@@ -64,7 +64,7 @@ object SyntaxTreeNode {
 
   object StructDefinition {
 
-    case class Field(name: String, tpe: String)
+    case class Field(name: String, tpe: TypeExpression)
 
   }
 
@@ -79,5 +79,7 @@ object SyntaxTreeNode {
     case class ByOrder(value: SyntaxTreeNode.Expression) extends Argument
 
   }
+
+  case class TypeExpression(name: String, args: Seq[TypeExpression]) extends SyntaxTreeNode
 
 }

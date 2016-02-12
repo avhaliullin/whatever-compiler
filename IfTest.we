@@ -32,4 +32,7 @@ if (true) {
 if (t) {
     b = t
 }
-echo (b)
+
+if (t || b) {
+    echo (b)
+}

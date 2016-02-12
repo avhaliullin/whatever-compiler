@@ -1,19 +1,30 @@
 package ru.avhaliullin.whatever.semantic
 
+import ru.avhaliullin.whatever.syntax.SyntaxTreeNode
+
 /**
   * @author avhaliullin
   */
-class TypesStore(structs: Map[String, Structure]) {
-  def getPassable(name: String): Tpe.Passable = {
-    getAny(name) match {
-      case p: Tpe.Passable => p
-      case other => throw new RuntimeException(s"Type $other cannot be used here")
-    }
-  }
+trait UserDefinedTypes {
+  def hasStruct(name: String): Boolean
+}
 
-  def getAny(name: String): Tpe = {
-    Tpe.getPrimitiveOpt(name).getOrElse(if (structs.contains(name)) Tpe.Struct(name) else throw new RuntimeException(s"Unknown type $name"))
+object UserDefinedTypes {
+  def apply(structNames: Iterable[String]) = new UserDefinedTypes {
+    private val names = structNames.toSet
+
+    override def hasStruct(name: String): Boolean = names(name)
+  }
+}
+
+class TypesStore(structs: Map[String, Structure]) extends UserDefinedTypes {
+
+  def getAny(name: SyntaxTreeNode.TypeExpression): Tpe = {
+    Tpe.getTpe(name, this)
   }
 
   def getStruct(name: String): Structure = structs(name)
+
+  def hasStruct(name: String) = structs.contains(name)
 }
+

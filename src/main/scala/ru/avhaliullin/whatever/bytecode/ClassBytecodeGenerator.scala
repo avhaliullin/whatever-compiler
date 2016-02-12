@@ -1,7 +1,6 @@
 package ru.avhaliullin.whatever.bytecode
 
 import org.apache.bcel.Constants
-import org.apache.bcel.Constants._
 import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.generic._
 import ru.avhaliullin.whatever.common.ClassName
@@ -122,7 +121,7 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
 
   }
 
-  def generateForNode(ctx: MethodContext, node: sem.Expression): Unit = {
+  def generateForNode(ctx: MethodContext, node: sem.Expression, returnUnit: Boolean = true): Unit = {
     import sem._
 
     def trivialBinOp(arg1: Expression, arg2: Expression, inst: Instruction): Unit = {
@@ -165,7 +164,7 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
         ctx.il.append(ctx.instF.createGetField(jtg.toJavaType(st).getClassName, field.name, jtg.toJavaType(field.tpe)))
 
       case Block(code, tpe) =>
-        code.foreach(generateForNode(ctx, _))
+        generateBlock(ctx, code)
 
       case FnCall(sig, args) =>
         args.foreach(generateForNode(ctx, _))
@@ -173,7 +172,7 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
           ctx.instF.createInvoke(
             ctx.cg.getClassName,
             sig.name,
-            jtg.toJavaType(sig.returnType),
+            jtg.toJavaFnRetType(sig.returnType),
             sig.args.map(arg => jtg.toJavaType(arg.tpe)).toArray,
             Constants.INVOKESTATIC
           )
@@ -188,11 +187,11 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
         val printType = jType match {
           case obj: ObjectType if obj != Type.STRING =>
             ctx.il.append(ctx.instF.createInvoke(
-              Type.OBJECT.getClassName,
-              "toString",
+              Type.STRING.getClassName,
+              "valueOf",
               Type.STRING,
-              Array(),
-              Constants.INVOKEVIRTUAL
+              Array(Type.OBJECT),
+              Constants.INVOKESTATIC
             ))
             Type.STRING
           case other => other
@@ -284,8 +283,8 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
       case IfExpr(cond, thenBlock, elseBlock, tpe) =>
         val thenIl = new InstructionList()
         val elseIl = new InstructionList()
-        generateForNode(ctx.withIL(thenIl), thenBlock)
-        generateForNode(ctx.withIL(elseIl), elseBlock)
+        generateForNode(ctx.withIL(thenIl), thenBlock, returnUnit)
+        generateForNode(ctx.withIL(elseIl), elseBlock, returnUnit)
         val thenIlOpt = if (thenIl.isEmpty) None else Some(thenIl)
         val elseIlOpt = if (elseIl.isEmpty) None else Some(elseIl)
         generateIf(ctx, cond, thenIlOpt, elseIlOpt)
@@ -293,8 +292,9 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
       case Nop =>
         ctx.il.append(new NOP)
 
-      case Pop(tpe) =>
-        ctx.il.append(InstructionFactory.createPop(jtg.toJavaType(tpe).getSize))
+      case Consume(expr) =>
+        generateForNode(ctx, expr)
+        ctx.il.append(InstructionFactory.createPop(jtg.toJavaType(expr.tpe).getSize))
 
       case si@StructureInstantiation(struct, args, evalOrder) =>
         val sType = jtg.toObjectType(si.tpe)
@@ -305,7 +305,7 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
         evalOrder.foreach {
           i =>
             val e = args(i)
-            generateForNode(ctx, VarAssignment(localVars(i)._1, e, false))
+            generateForNode(ctx, VarAssignment(localVars(i)._1, e, false), returnUnit = false)
         }
         localVars.foreach {
           case (id, tpe) =>
@@ -320,14 +320,19 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
           )
         )
     }
+    if (returnUnit && !node.valRet) {
+      ctx.il.append(InstructionConstants.ACONST_NULL)
+    }
   }
 
   def generateBlock(ctx: MethodContext, code: Seq[sem.Expression]): Unit = {
-    code.foreach(generateForNode(ctx, _))
+    if (code.nonEmpty) {
+      code.foreach(generateForNode(ctx, _, returnUnit = false))
+    }
   }
 
   def generateClass(ast: Seq[sem.FnDefinition]): JavaClass = {
-    val cg = new ClassGen(className.name, "java.lang.Object", "<generated>", ACC_PUBLIC | ACC_SUPER, null)
+    val cg = new ClassGen(className.name, "java.lang.Object", "<generated>", Constants.ACC_PUBLIC | Constants.ACC_SUPER, null)
     val cp = cg.getConstantPool
 
     val instFactory = new InstructionFactory(cg)
@@ -336,7 +341,7 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
       val il = new InstructionList()
 
       val mg = new MethodGen(
-        ACC_STATIC | ACC_PUBLIC,
+        Constants.ACC_STATIC | Constants.ACC_PUBLIC,
         retType,
         args.map(_._2).toArray,
         args.map(_._1).toArray,
@@ -357,7 +362,7 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
 
     ast.foreach {
       case sem.FnDefinition(sig, code) =>
-        generateMethod(code, sig.name, sig.args.map(arg => (arg.name, jtg.toJavaType(arg.tpe))), jtg.toJavaType(sig.returnType))
+        generateMethod(code, sig.name, sig.args.map(arg => (arg.name, jtg.toJavaType(arg.tpe))), jtg.toJavaFnRetType(sig.returnType))
     }
 
     cg.getJavaClass

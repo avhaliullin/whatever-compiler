@@ -89,11 +89,11 @@ class StructureGenerator(className: ClassName, ts: TypesStore) {
 
       def createToString(): Instruction = {
         instFactory.createInvoke(
-          sbClass,
-          "toString",
+          Type.STRING.getClassName,
+          "valueOf",
           Type.STRING,
-          Array(),
-          Constants.INVOKEVIRTUAL
+          Array(Type.OBJECT),
+          Constants.INVOKESTATIC
         )
       }
 

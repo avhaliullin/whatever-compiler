@@ -16,6 +16,8 @@ object SemanticTreeNode {
   sealed trait Expression extends SemanticTreeNode {
     def tpe: Tpe
 
+    def valRet: Boolean = true
+
     def mute: Expression
 
     def pretty = prettyExpr.prepend(s"[$tpe]")
@@ -27,6 +29,8 @@ object SemanticTreeNode {
     override final def tpe: Tpe = Tpe.UNIT
 
     def mute = this
+
+    override val valRet = false
   }
 
   case class VarDefinition(id: VarId, varType: Tpe) extends Statement {
@@ -37,6 +41,8 @@ object SemanticTreeNode {
     def value: Expression
 
     def read: Boolean
+
+    override def valRet = read
 
     def tpe = if (read) value.tpe else Tpe.UNIT
   }
@@ -76,6 +82,8 @@ object SemanticTreeNode {
       }
     }
 
+    override def valRet = if (code.isEmpty) false else code.last.valRet
+
     def prettyExpr = PrettyPrint.Complex("{", "}", code.map(_.pretty))
   }
 
@@ -101,12 +109,14 @@ object SemanticTreeNode {
     override def tpe: Tpe = sig.returnType
 
     def mute = {
-      if (tpe == Tpe.UNIT) {
+      if (valRet) {
         this
       } else {
-        Block(Seq(this, Pop(tpe)), Tpe.UNIT)
+        Consume(this)
       }
     }
+
+    override def valRet = tpe == Tpe.UNIT
 
     def prettyExpr = PrettyPrint.Complex("FnCall(", ")", PrettyPrint.Literal(sig.name) +: args.map(_.pretty))
   }
@@ -120,7 +130,7 @@ object SemanticTreeNode {
 
     def mute = {
       if (op.conditionalEval) {
-        Block(Seq(this, Pop(op.retType)), Tpe.UNIT)
+        Consume(this)
       } else {
         Block(Seq(arg1.mute, arg2.mute), Tpe.UNIT)
       }
@@ -157,7 +167,7 @@ object SemanticTreeNode {
     def literal = value.toString
   }
 
-  case class StringConst(value:String) extends Const {
+  case class StringConst(value: String) extends Const {
     val tpe = Tpe.STRING
 
     def literal = value
@@ -179,8 +189,8 @@ object SemanticTreeNode {
     def prettyExpr = PrettyPrint.Literal("NOP")
   }
 
-  case class Pop(argType: Tpe) extends Statement {
-    def prettyExpr = PrettyPrint.Literal(s"POP[$argType]")
+  case class Consume(expr: Expression) extends Statement {
+    def prettyExpr = PrettyPrint.Complex(s"Consume(", ")", Seq(expr.pretty))
   }
 
 }

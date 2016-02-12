@@ -1,0 +1,14 @@
+var x: Unit = {}
+
+fn printUnit(u: Unit): Unit = {
+    echo(u)
+}
+
+printUnit(x)
+
+struct St(x: Boolean, u: Unit)
+
+var s = new St(x := false, u := {})
+
+echo(s)
+echo(s.u)

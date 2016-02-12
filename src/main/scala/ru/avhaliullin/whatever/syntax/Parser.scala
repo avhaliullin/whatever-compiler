@@ -14,7 +14,10 @@ class Parser extends JavaTokenParsers {
 
   private val varName = literal
 
-  private val typeName = literal
+  private def typeExpression: Parser[TypeExpression] = literal ~ opt("[" ~> rep1sep(typeExpression, ",") <~ "]") ^^ {
+    case name ~ argsOpt =>
+      TypeExpression(name, argsOpt.getOrElse(Nil))
+  }
 
   private val fnName = literal
 
@@ -52,7 +55,7 @@ class Parser extends JavaTokenParsers {
       FnCall(name, args)
   }
 
-  private def sInstantiation = "new" ~> typeName ~ argList ^^ {
+  private def sInstantiation = "new" ~> literal ~ argList ^^ {
     case tName ~ args =>
       StructInstantiation(tName, args)
   }
@@ -129,7 +132,7 @@ class Parser extends JavaTokenParsers {
   private def expr: Parser[Expression] = binary
 
 
-  private val varDefinition = "var" ~> varName ~ (":" ~> typeName).? ~ ("=" ~> expr).? ^^ {
+  private val varDefinition = "var" ~> varName ~ (":" ~> typeExpression).? ~ ("=" ~> expr).? ^^ {
     case name ~ None ~ None => throw new RuntimeException(s"Variable $name doesn't have type nor assigned")
     case name ~ Some(tpe) ~ None => VarDefinition(name, tpe)
     case name ~ tpeOpt ~ Some(ass) => VarDefinitionWithAssignment(name, tpeOpt, ass)
@@ -146,11 +149,11 @@ class Parser extends JavaTokenParsers {
 
   private def statement: Parser[Expression] = echo | varDefinition | assignment | expr
 
-  private val arg = varName ~ ":" ~ typeName ^^ {
+  private val arg = varName ~ ":" ~ typeExpression ^^ {
     case varName ~ _ ~ typeName => FnDefinition.Arg(varName, typeName)
   }
 
-  private val fnSignature = "fn" ~> fnName ~ "(" ~ repsep(arg, ",") ~ ")" ~ ":" ~ typeName ^^ {
+  private val fnSignature = "fn" ~> fnName ~ "(" ~ repsep(arg, ",") ~ ")" ~ ":" ~ typeExpression ^^ {
     case fnName ~ _ ~ args ~ _ ~ _ ~ retType =>
       FnDefinition.Signature(fnName, retType, args)
   }
@@ -160,7 +163,7 @@ class Parser extends JavaTokenParsers {
       FnDefinition(sig, code)
   }
 
-  private val structField = varName ~ ":" ~ typeName ^^ {
+  private val structField = varName ~ ":" ~ typeExpression ^^ {
     case varName ~ _ ~ typeName => StructDefinition.Field(varName, typeName)
   }
 

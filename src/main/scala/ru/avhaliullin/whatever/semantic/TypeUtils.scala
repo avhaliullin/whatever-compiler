@@ -18,7 +18,7 @@ object TypeUtils {
     if (t1 == t2) {
       t1
     } else {
-      Tpe.UNIT
+      Tpe.ANY
     }
   }
 
