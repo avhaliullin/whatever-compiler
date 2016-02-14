@@ -1,1 +1,21 @@
-var arr: Array[Int]
+var arr: Array[Int] = new Array[Int](1, 2, 3, 4, 5)
+
+echo(arr)
+
+struct Point(x: Int, y: Int)
+
+fn x2(x: Int): Point = {
+    new Point(x := x, y := x * x)
+}
+
+var points = new Array(x2(1), x2(2), x2(3), x2(4), x2(5))
+
+echo(points)
+
+var emptyArr = new Array[Boolean]()
+
+echo(emptyArr)
+
+var mdArr = new Array(new Array[Boolean](false, true))
+
+echo(mdArr)

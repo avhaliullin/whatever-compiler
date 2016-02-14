@@ -194,6 +194,20 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
               Constants.INVOKESTATIC
             ))
             Type.STRING
+          case arr: ArrayType =>
+            val eTpe = arr.getElementType match {
+              case ot: ObjectType => Type.OBJECT
+              case at: ArrayType => Type.OBJECT //TODO: already need std library here
+              case other => other
+            }
+            ctx.il.append(ctx.instF.createInvoke(
+              "java.util.Arrays",
+              "toString",
+              Type.STRING,
+              Array(new ArrayType(eTpe, 1)),
+              Constants.INVOKESTATIC
+            ))
+            Type.STRING
           case other => other
         }
         ctx.il.append(ctx.instF.createInvoke("java.io.PrintStream", "println", Type.VOID,
@@ -319,6 +333,20 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
             Constants.INVOKESPECIAL
           )
         )
+
+      case ArrayInstantiation(elemType, args) =>
+        val javaElemType = jtg.toJavaType(elemType)
+        val size = args.size
+        ctx.il.append(new PUSH(ctx.cpg, size))
+        ctx.il.append(ctx.instF.createNewArray(javaElemType, 1))
+        args.zipWithIndex.foreach {
+          case (e, idx) =>
+            ctx.il.append(new DUP)
+            ctx.il.append(new PUSH(ctx.cpg, idx))
+            generateForNode(ctx, e)
+            ctx.il.append(InstructionFactory.createArrayStore(javaElemType))
+        }
+
     }
     if (returnUnit && !node.valRet) {
       ctx.il.append(InstructionConstants.ACONST_NULL)

@@ -82,4 +82,6 @@ object SyntaxTreeNode {
 
   case class TypeExpression(name: String, args: Seq[TypeExpression]) extends SyntaxTreeNode
 
+  case class ArrayInstantiation(tpeOpt: Option[TypeExpression], elements: Seq[Expression]) extends Expression
+
 }

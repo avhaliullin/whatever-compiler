@@ -55,13 +55,19 @@ class Parser extends JavaTokenParsers {
       FnCall(name, args)
   }
 
-  private def sInstantiation = "new" ~> literal ~ argList ^^ {
+  private def sInstantiation = literal ~ argList ^^ {
     case tName ~ args =>
       StructInstantiation(tName, args)
   }
 
 
-  private def term = (sInstantiation | ifSt | fCall | value | par | block) ~ ("." ~> rep1sep(varName, ".")).? ^^ {
+  private def arrInstantiation = ("Array" ~> ("[" ~> typeExpression <~ "]").?) ~ ("(" ~> repsep(expr, ",") <~ ")") ^^ {
+    case tpeOpt ~ exprs => ArrayInstantiation(tpeOpt, exprs)
+  }
+
+  private def instantiation = "new" ~> (arrInstantiation | sInstantiation)
+
+  private def term = (instantiation | ifSt | fCall | value | par | block) ~ ("." ~> rep1sep(varName, ".")).? ^^ {
     case e ~ Some(fields) =>
 
       fields.foldLeft(e) {

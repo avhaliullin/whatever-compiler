@@ -116,7 +116,7 @@ object SemanticTreeNode {
       }
     }
 
-    override def valRet = tpe == Tpe.UNIT
+    override def valRet = tpe != Tpe.UNIT
 
     def prettyExpr = PrettyPrint.Complex("FnCall(", ")", PrettyPrint.Literal(sig.name) +: args.map(_.pretty))
   }
@@ -191,6 +191,14 @@ object SemanticTreeNode {
 
   case class Consume(expr: Expression) extends Statement {
     def prettyExpr = PrettyPrint.Complex(s"Consume(", ")", Seq(expr.pretty))
+  }
+
+  case class ArrayInstantiation(elemTpe: Tpe, args: Seq[Expression]) extends Expression {
+    val tpe = Tpe.Arr(elemTpe)
+
+    override def mute: Expression = Block(args.map(_.mute), tpe)
+
+    override def prettyExpr: PrettyPrint = PrettyPrint.Complex("Arr(", ")", args.map(_.pretty))
   }
 
 }

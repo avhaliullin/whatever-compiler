@@ -173,6 +173,28 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
             (head :+ e, newCtx)
         }
         sem.StructureInstantiation(struct, typedExprs.toIndexedSeq, evalOrder) -> newCtx
+
+      case syn.ArrayInstantiation(tpe, exprs) =>
+        val elemTpeOpt = tpe.map(ts.getAny)
+        val (args, newBc) = exprs.foldLeft((Seq[sem.Expression](), bc)) {
+          case ((resExprs, bc), it) =>
+            val (res, newBc) = convertExpression(bc, it)
+            (resExprs :+ res, newBc)
+        }
+        val elemTpe = elemTpeOpt match {
+          case None =>
+            if (args.isEmpty) {
+              throw new RuntimeException("Cannot infer type for empty array")
+            }
+            args.map(_.tpe).reduce(TypeUtils.getUpperBoundType)
+          case Some(elem) =>
+            args.map(_.tpe).foreach(TypeUtils.assertAssignable(_, elem))
+            elem
+        }
+        if (elemTpe == Tpe.ANY) {
+          throw new RuntimeException("Arrays of 'Any' type are not supported yet")
+        }
+        sem.ArrayInstantiation(elemTpe, args) -> newBc
     }
   }
 
