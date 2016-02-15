@@ -9,7 +9,7 @@ import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode => syn}
 class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
   def convert(code: Seq[syn.Expression], sig: FnSignature): sem.FnDefinition = {
     val blockContext = BlockContext(
-      sig.args.map(arg => arg.name -> VarInfo(varIdGen.methodArg(arg.name), arg.tpe)).toMap,
+      sig.args.map(arg => arg.name -> VarInfo(varIdGen.methodArg(arg.name), arg.tpe, true)).toMap,
       Map(),
       sig.args.map(arg => varIdGen.methodArg(arg.name)).toSet
     )
@@ -64,6 +64,9 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
             bc.getVar(name) match {
               case None => throw new RuntimeException(s"Assignment to undefined variable $assignee")
               case Some(varInfo) =>
+                if (!varInfo.mutable) {
+                  throw new RuntimeException(s"Variable $assignee is immutable")
+                }
                 TypeUtils.assertAssignable(typedValue.tpe, varInfo.tpe)
                 sem.VarAssignment(varInfo.id, typedValue, read = true) -> newBc.assign(varInfo.id)
             }
@@ -88,7 +91,7 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
         }
         val tpe = ts.getAny(tpeName)
         val varId = varIdGen.nextVar(name)
-        sem.VarDefinition(varId, tpe) -> bc.define(VarInfo(varId, tpe))
+        sem.VarDefinition(varId, tpe) -> bc.define(VarInfo(varId, tpe, true))
 
       case syn.VarDefinitionWithAssignment(name, rawTpeOpt, rawExpr) =>
         val (typedExpr, newBc) = convertExpression(bc, rawExpr)
@@ -105,7 +108,7 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
         sem.Block(Seq(
           sem.VarDefinition(varId, tpe),
           sem.VarAssignment(varId, typedExpr, true)
-        ), tpe) -> newBc.define(VarInfo(varId, tpe)).assign(varId)
+        ), tpe) -> newBc.define(VarInfo(varId, tpe, true)).assign(varId)
 
       case syn.FieldAccess(name, stExpr) =>
         val (typedStExpr, newBc) = convertExpression(bc, stExpr)
@@ -195,6 +198,7 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
           throw new RuntimeException("Arrays of 'Any' type are not supported yet")
         }
         sem.ArrayInstantiation(elemTpe, args) -> newBc
+
       case syn.MethodCall(ths, name, args) =>
         val (thsExpr, newBc) = convertExpression(bc, ths)
         val (argExprs, newBc2) = args.foldLeft((Seq[sem.Expression](), newBc)) {
@@ -216,6 +220,16 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
             throw new RuntimeException(s"Type $other doesn't have method $name")
         }
         resExpr -> newBc2
+
+      case syn.ForLoop(itVarName, iterable, body) =>
+        val (iterableExpr, bc1) = convertExpression(bc, iterable)
+        val itVarId = varIdGen.nextVar(itVarName)
+        iterableExpr.tpe match {
+          case arrTpe@Tpe.Arr(elemTpe) =>
+            val (bodyExpr, bc2) = convertBlock(bc1.nestedBlock().defineAssigned(VarInfo(itVarId, elemTpe, false)), body.exprs)
+            sem.ForLoop(itVarId, iterableExpr, bodyExpr.mute.code) -> bc1 // Drop bc2, because i cannot prove that loop body were executed at least once
+          case other => throw new RuntimeException(s"Cannot iterate over $other")
+        }
     }
   }
 
@@ -253,6 +267,8 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
 
     def define(varInfo: VarInfo) = copy(localVars = localVars + (varInfo.id.name -> varInfo))
 
+    def defineAssigned(varInfo: VarInfo) = define(varInfo).copy(assigned = assigned + varInfo.id)
+
     def nestedBlock(): BlockContext = BlockContext(
       Map(),
       outerVars ++ localVars,
@@ -266,6 +282,6 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
     }
   }
 
-  case class VarInfo(id: VarId, tpe: Tpe)
+  case class VarInfo(id: VarId, tpe: Tpe, mutable: Boolean)
 
 }

@@ -32,6 +32,13 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
       vars += id -> mg.addLocalVariable(id.name, jtg.toJavaType(tpe), null, null)
     }
 
+    def incrementVar(id: VarId, factor: Int): InstructionHandle = {
+      val lvg = vars(id)
+      val ih = il.append(new IINC(lvg.getIndex, factor))
+      lvg.setEnd(ih)
+      ih
+    }
+
     def storeVar(id: VarId, tpe: Tpe): InstructionHandle = {
       assignVar(id, InstructionFactory.createStore(jtg.toJavaType(tpe), _))
     }
@@ -362,6 +369,32 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
         generateForNode(ctx, value)
         ctx.il.append(InstructionFactory.createArrayStore(jtg.toJavaType(value.tpe)))
 
+      case ForLoop(itVarId, iterable, body) =>
+        generateForNode(ctx, iterable)
+
+        iterable.tpe match {
+          case arrTpe@Tpe.Arr(elemType) =>
+            val idxVar = ctx.generateLocalVar(Tpe.INT)
+            val arrVar = ctx.generateLocalVar(arrTpe)
+            ctx.storeVar(arrVar, arrTpe)
+            ctx.il.append(new PUSH(ctx.cpg, 0))
+            ctx.storeVar(idxVar, Tpe.INT)
+            val loopStart = ctx.loadVar(idxVar, Tpe.INT)
+            ctx.loadVar(arrVar, arrTpe)
+            ctx.il.append(new ARRAYLENGTH)
+            val onFail = ctx.il.append(new IF_ICMPGE(null))
+            ctx.loadVar(arrVar, arrTpe)
+            ctx.loadVar(idxVar, Tpe.INT)
+            ctx.il.append(InstructionFactory.createArrayLoad(jtg.toJavaType(elemType)))
+            ctx.defineVar(itVarId, elemType)
+            ctx.storeVar(itVarId, elemType)
+            generateBlock(ctx, body)
+            ctx.incrementVar(idxVar, 1)
+            ctx.il.append(new GOTO(loopStart))
+            val end = ctx.il.append(new NOP)
+            onFail.setTarget(end)
+          case unknown => throw new RuntimeException("For loop not implemented for " + unknown)
+        }
     }
     if (returnUnit && !node.valRet) {
       ctx.il.append(InstructionConstants.ACONST_NULL)

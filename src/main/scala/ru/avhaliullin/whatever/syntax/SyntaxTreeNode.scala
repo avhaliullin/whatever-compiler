@@ -86,4 +86,6 @@ object SyntaxTreeNode {
 
   case class ArrayInstantiation(tpeOpt: Option[TypeExpression], elements: Seq[Expression]) extends Expression
 
+  case class ForLoop(itVarName: String, iterable: Expression, body: Block) extends Expression
+
 }

@@ -74,7 +74,7 @@ object SemanticTreeNode {
   }
 
   case class Block(code: Seq[SemanticTreeNode.Expression], tpe: Tpe) extends Expression {
-    def mute = {
+    def mute: Block = {
       if (tpe == Tpe.UNIT) {
         this
       } else {
@@ -224,6 +224,14 @@ object SemanticTreeNode {
       "ArrSet(",
       ")",
       Seq(array.pretty.prepend("array: "), index.pretty.prepend("index: "), value.pretty.prepend("value: "))
+    )
+  }
+
+  case class ForLoop(itVar: VarId, iterable: Expression, body: Seq[Expression]) extends Statement {
+    override def prettyExpr: PrettyPrint = PrettyPrint.Complex(
+      "For(" + itVar,
+      ")",
+      iterable.pretty.prepend("in: ") +: body.map(_.pretty)
     )
   }
 

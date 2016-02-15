@@ -79,7 +79,7 @@ class Parser extends JavaTokenParsers {
 
   private def member = term ~ rep("." ~> (fnName ~ fArgsList ^^ {
     case mName ~ exprs => Method(mName, exprs)
-  } | varName ^^ Field )) ^^ {
+  } | varName ^^ Field)) ^^ {
     case e0 ~ members => members.foldLeft(e0) {
       case (acc, Field(fieldName)) =>
         FieldAccess(fieldName, acc)
@@ -164,7 +164,7 @@ class Parser extends JavaTokenParsers {
       IfBlock(cond, thenBlock.exprs, elseBlockOpt.map(_.exprs).getOrElse(Seq()))
   }
 
-  private def statement: Parser[Expression] = echo | varDefinition | assignment | expr
+  private def statement: Parser[Expression] = forLoop | echo | varDefinition | assignment | expr
 
   private val arg = varName ~ ":" ~ typeExpression ^^ {
     case varName ~ _ ~ typeName => FnDefinition.Arg(varName, typeName)
@@ -187,6 +187,10 @@ class Parser extends JavaTokenParsers {
   private val structDefinition = "struct" ~> literal ~ ("(" ~> repsep(structField, ",") <~ ")") ^^ {
     case typeName ~ fields =>
       StructDefinition(typeName, fields)
+  }
+
+  private def forLoop = ("for" ~> "(" ~> varName ~ "<-" ~ expr <~ ")") ~ block ^^ {
+    case it ~ _ ~ src ~ body => ForLoop(it, src, body)
   }
 
   private val parser: Parser[List[SyntaxTreeNode]] = rep(structDefinition | fnDefinition | statement)
