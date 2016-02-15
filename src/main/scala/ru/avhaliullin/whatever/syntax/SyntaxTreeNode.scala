@@ -40,6 +40,8 @@ object SyntaxTreeNode {
 
   case class FieldAccess(name: String, expr: Expression) extends Expression
 
+  case class MethodCall(expr: Expression, name: String, args: Seq[Expression]) extends Expression
+
   case class VarDefinition(name: String, tpe: TypeExpression) extends Expression
 
   case class VarDefinitionWithAssignment(name: String, tpe: Option[TypeExpression], expr: Expression) extends Expression

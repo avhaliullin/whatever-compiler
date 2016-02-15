@@ -201,4 +201,30 @@ object SemanticTreeNode {
     override def prettyExpr: PrettyPrint = PrettyPrint.Complex("Arr(", ")", args.map(_.pretty))
   }
 
+  case class ArrayLength(array: Expression) extends Expression {
+    val tpe = Tpe.INT
+
+    override def mute: Expression = Nop
+
+    override def prettyExpr: PrettyPrint = PrettyPrint.Complex("ArrLength(", ")", Seq(array.pretty))
+  }
+
+  case class ArrayGet(array: Expression, index: Expression, tpe: Tpe) extends Expression {
+    override def mute: Expression = Block(Seq(array.mute, index.mute), Tpe.UNIT)
+
+    override def prettyExpr: PrettyPrint = PrettyPrint.Complex(
+      "ArrGet(",
+      ")",
+      Seq(array.pretty.prepend("array: "), index.pretty.prepend("index: "))
+    )
+  }
+
+  case class ArraySet(array: Expression, index: Expression, value: Expression) extends Statement {
+    override def prettyExpr: PrettyPrint = PrettyPrint.Complex(
+      "ArrSet(",
+      ")",
+      Seq(array.pretty.prepend("array: "), index.pretty.prepend("index: "), value.pretty.prepend("value: "))
+    )
+  }
+
 }

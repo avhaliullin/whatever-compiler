@@ -347,6 +347,21 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
             ctx.il.append(InstructionFactory.createArrayStore(javaElemType))
         }
 
+      case ArrayLength(arr) =>
+        generateForNode(ctx, arr)
+        ctx.il.append(new ARRAYLENGTH)
+
+      case ArrayGet(arr, index, tpe) =>
+        generateForNode(ctx, arr)
+        generateForNode(ctx, index)
+        ctx.il.append(InstructionFactory.createArrayLoad(jtg.toJavaType(tpe)))
+
+      case ArraySet(arr, index, value) =>
+        generateForNode(ctx, arr)
+        generateForNode(ctx, index)
+        generateForNode(ctx, value)
+        ctx.il.append(InstructionFactory.createArrayStore(jtg.toJavaType(value.tpe)))
+
     }
     if (returnUnit && !node.valRet) {
       ctx.il.append(InstructionConstants.ACONST_NULL)

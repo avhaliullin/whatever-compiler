@@ -50,7 +50,9 @@ class Parser extends JavaTokenParsers {
       case None ~ value => Argument.ByOrder(value)
     }, ",") <~ ")"
 
-  private def fCall = fnName ~ ("(" ~> repsep(expr, ",") <~ ")") ^^ {
+  private def fArgsList = "(" ~> repsep(expr, ",") <~ ")"
+
+  private def fCall = fnName ~ fArgsList ^^ {
     case name ~ args =>
       FnCall(name, args)
   }
@@ -67,21 +69,30 @@ class Parser extends JavaTokenParsers {
 
   private def instantiation = "new" ~> (arrInstantiation | sInstantiation)
 
-  private def term = (instantiation | ifSt | fCall | value | par | block) ~ ("." ~> rep1sep(varName, ".")).? ^^ {
-    case e ~ Some(fields) =>
+  private def term = instantiation | ifSt | fCall | value | par | block
 
-      fields.foldLeft(e) {
-        (acc, it) =>
-          FieldAccess(it, acc)
-      }
-    case e ~ None => e
+  private sealed trait Member
+
+  private case class Field(name: String) extends Member
+
+  private case class Method(name: String, args: Seq[Expression]) extends Member
+
+  private def member = term ~ rep("." ~> (fnName ~ fArgsList ^^ {
+    case mName ~ exprs => Method(mName, exprs)
+  } | varName ^^ Field )) ^^ {
+    case e0 ~ members => members.foldLeft(e0) {
+      case (acc, Field(fieldName)) =>
+        FieldAccess(fieldName, acc)
+      case (acc, Method(methodName, args)) =>
+        MethodCall(acc, methodName, args)
+    }
   }
 
   // unary
   private val unaryRegex =
     """-|!""".r
 
-  private def unary = rep(unaryRegex) ~ term ^^ {
+  private def unary = rep(unaryRegex) ~ member ^^ {
     case ops ~ expr => ops.foldRight(expr: Expression) {
       (op, e) =>
         UnaryOperator(e, op)

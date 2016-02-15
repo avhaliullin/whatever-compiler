@@ -195,6 +195,27 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
           throw new RuntimeException("Arrays of 'Any' type are not supported yet")
         }
         sem.ArrayInstantiation(elemTpe, args) -> newBc
+      case syn.MethodCall(ths, name, args) =>
+        val (thsExpr, newBc) = convertExpression(bc, ths)
+        val (argExprs, newBc2) = args.foldLeft((Seq[sem.Expression](), newBc)) {
+          case ((exprsAcc, bc), e) =>
+            val (newExpr, newBc) = convertExpression(bc, e)
+            (exprsAcc :+ newExpr) -> newBc
+        }
+        val resExpr = thsExpr.tpe match {
+          case arrTpe@Tpe.Arr(elemTpe) =>
+            (name, argExprs) match {
+              case ("size", Seq()) => sem.ArrayLength(thsExpr)
+              case ("get", Seq(index)) if TypeUtils.isAssignable(index.tpe, Tpe.INT) => sem.ArrayGet(thsExpr, index, elemTpe)
+              case ("set", Seq(index, value)) if TypeUtils.isAssignable(index.tpe, Tpe.INT) && TypeUtils.isAssignable(value.tpe, elemTpe) =>
+                sem.ArraySet(thsExpr, index, value)
+              case _ =>
+                throw new RuntimeException(s"Not found method $name with args ${argExprs.map(_.tpe).mkString(",")} of type $arrTpe")
+            }
+          case other =>
+            throw new RuntimeException(s"Type $other doesn't have method $name")
+        }
+        resExpr -> newBc2
     }
   }
 
