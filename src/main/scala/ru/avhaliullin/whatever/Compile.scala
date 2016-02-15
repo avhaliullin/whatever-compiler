@@ -40,7 +40,7 @@ object Compile {
         val pr = p.parse(Source.fromFile(file).bufferedReader())
 
         pr match {
-          case p.Success(ast: List[SyntaxTreeNode], _) =>
+          case p.Success(ast: List[SyntaxTreeNode.Definition], _) =>
             println(ast)
             //            val typed = ASTTypeChecker.convert(ast)
             val cc = new ClassConverter
