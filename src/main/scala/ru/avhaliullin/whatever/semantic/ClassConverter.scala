@@ -7,9 +7,8 @@ import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem}
   * @author avhaliullin
   */
 class ClassConverter {
-  private val mainSig = FnSignature("main", Seq(FnSignature.Arg("args", Tpe.ARGS)), Tpe.UNIT)
 
-  def convert(ast: Seq[syn]): (Seq[sem.FnDefinition], Seq[Structure]) = {
+  def convert(ast: Seq[syn.Definition]): (Seq[sem.FnDefinition], Seq[Structure]) = {
     val structs = ast.collect {
       case st: syn.StructDefinition => st
     }
@@ -25,19 +24,13 @@ class ClassConverter {
     val fa = new FnAnalyzer(ts)
     val (fnName2Fns, fnRawSig2Typed) = fa.generateFnSigs(fns)
 
-    val exprs = ast.collect {
-      case expr: syn.Expression => expr
-    }
-
     val fnStore = new FnStore(fnName2Fns)
 
     val fc = new FnConverter(ts, fnStore, new VarIdGen)
 
-    val mainConverted = fc.convert(exprs, mainSig)
-
     (fns.map {
       fn =>
         fc.convert(fn.code, fnRawSig2Typed(fn))
-    } :+ mainConverted, structName2Struct.values.toSeq)
+    }, structName2Struct.values.toSeq)
   }
 }

@@ -1,14 +1,15 @@
-var x: Unit = {}
-
 fn printUnit(u: Unit): Unit = {
     echo(u)
 }
 
-printUnit(x)
-
 struct St(x: Boolean, u: Unit)
 
-var s = new St(x := false, u := {})
+fn main(args: Array[String]): Unit = {
+    var x: Unit = {}
+    printUnit(x)
 
-echo(s)
-echo(s.u)
+    var s = new St(x := false, u := {})
+
+    echo(s)
+    echo(s.u)
+}

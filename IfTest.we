@@ -2,37 +2,39 @@ fn isGood(x: Int): Boolean = {
     x / 2 * 2 == x
 }
 
-if (isGood(3)) {
-    echo(1)
-}
+fn main(args: Array[String]): Unit = {
+    if (isGood(3)) {
+        echo(1)
+    }
 
-if (isGood(4)) {
-    echo(2)
-} else {
-    echo(3)
-}
+    if (isGood(4)) {
+        echo(2)
+    } else {
+        echo(3)
+    }
 
-var b: Boolean
-var t: Boolean
-t = true
-b = false
+    var b: Boolean
+    var t: Boolean
+    t = true
+    b = false
 
-if (1 < 2) {
-    b = 1 < 2
-}
+    if (1 < 2) {
+        b = 1 < 2
+    }
 
-if (1 == 1) {
-    b = 1 == 1
-}
+    if (1 == 1) {
+        b = 1 == 1
+    }
 
-if (true) {
-    b = true
-}
+    if (true) {
+        b = true
+    }
 
-if (t) {
-    b = t
-}
+    if (t) {
+        b = t
+    }
 
-if (t || b) {
-    echo (b)
+    if (t || b) {
+        echo (b)
+    }
 }

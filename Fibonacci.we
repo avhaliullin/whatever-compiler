@@ -6,4 +6,6 @@ fn fib(n: Int) : Int = {
     }
 }
 
-echo(fib(7))
+fn main(args: Array[String]): Unit = {
+    echo(fib(7))
+}

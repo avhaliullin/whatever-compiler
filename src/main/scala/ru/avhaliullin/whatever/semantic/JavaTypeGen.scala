@@ -39,7 +39,6 @@ class JavaTypeGen(className: ClassName) {
       case Tpe.BOOL => Type.BOOLEAN
       case Tpe.INT => Type.INT
       case Tpe.UNIT => if (fnRetType) Type.VOID else Type.getType(classOf[Void])
-      case Tpe.ARGS => new ArrayType(Type.STRING, 1)
       case Tpe.STRING => Type.STRING
 
       case Tpe.Struct(name) => new ObjectType(className.name + "$" + name)

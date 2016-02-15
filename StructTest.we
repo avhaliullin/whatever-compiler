@@ -11,18 +11,20 @@ fn createSt(x: Int): A = {
     new A(foo := b, bar := x)
 }
 
-var st = createSt(10)
+fn main(args: Array[String]): Unit = {
+    var st = createSt(10)
 
-echo(st)
+    echo(st)
 
-st.bar = 13
+    st.bar = 13
 
-echo(st)
-echo2(st)
+    echo(st)
+    echo2(st)
 
-echo(new A(bar := 14, foo := false))
+    echo(new A(bar := 14, foo := false))
 
-echo(new A(true, bar := {
-    var x = 3
-    x = x + 1
-}))
+    echo(new A(true, bar := {
+        var x = 3
+        x = x + 1
+    }))
+}

@@ -4,8 +4,10 @@ fn concatWithRecord(r: Record, nameSuffix: String): String = {
     r.name + nameSuffix
 }
 
-var r = new Record(id := 11, name := "Hello")
+fn main(args: Array[String]): Unit = {
+    var r = new Record(id := 11, name := "Hello")
 
-echo(r)
+    echo(r)
 
-echo(concatWithRecord(r, " world!"))
+    echo(concatWithRecord(r, " world!"))
+}

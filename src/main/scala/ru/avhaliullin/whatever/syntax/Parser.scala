@@ -193,7 +193,7 @@ class Parser extends JavaTokenParsers {
     case it ~ _ ~ src ~ body => ForLoop(it, src, body)
   }
 
-  private val parser: Parser[List[SyntaxTreeNode]] = rep(structDefinition | fnDefinition | statement)
+  private val parser: Parser[List[SyntaxTreeNode.Definition]] = rep(structDefinition | fnDefinition)
 
   def parse(r: java.io.Reader) = parseAll(parser, r)
 }

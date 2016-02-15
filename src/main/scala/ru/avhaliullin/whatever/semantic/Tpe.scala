@@ -29,10 +29,6 @@ object Tpe {
     val name = "String"
   }
 
-  case object ARGS extends Predefined {
-    val name = "String[]"
-  }
-
   case class Struct(name: String) extends Tpe
 
   case class Arr(elem: Tpe) extends Predefined {

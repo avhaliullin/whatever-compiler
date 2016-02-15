@@ -1,17 +1,19 @@
-var t: Boolean
-var f: Boolean
+fn main(args: Array[String]): Unit = {
+    var t: Boolean
+    var f: Boolean
 
-t = true
-f = false
+    t = true
+    f = false
 
-echo(f & t)
+    echo(f & t)
 
-echo(f | t)
+    echo(f | t)
 
-echo(f ^ t)
+    echo(f ^ t)
 
-echo (f && t)
+    echo (f && t)
 
-echo (f || t)
+    echo (f || t)
 
-echo(!f)
+    echo(!f)
+}
