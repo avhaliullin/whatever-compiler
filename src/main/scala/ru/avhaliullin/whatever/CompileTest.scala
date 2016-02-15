@@ -2,10 +2,11 @@ package ru.avhaliullin.whatever
 
 import java.io.{File, FilenameFilter}
 
+import ru.avhaliullin.whatever.semantic.module.ClassConverter
+import ru.avhaliullin.whatever.semantic.tpe.TypesStore
 import ru.avhaliullin.whatever.syntax.{Parser, SyntaxTreeNode}
 import ru.avhaliullin.whatever.common.{PrettyPrint, ClassName}
 import ru.avhaliullin.whatever.bytecode.{StructureGenerator, ClassBytecodeGenerator}
-import ru.avhaliullin.whatever.semantic.{TypesStore, ClassConverter}
 
 import scala.io.Source
 

@@ -1,4 +1,4 @@
-package ru.avhaliullin.whatever.semantic
+package ru.avhaliullin.whatever.semantic.tpe
 
 import ru.avhaliullin.whatever.syntax.SyntaxTreeNode
 

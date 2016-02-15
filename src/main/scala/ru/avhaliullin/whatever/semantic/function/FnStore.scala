@@ -1,4 +1,6 @@
-package ru.avhaliullin.whatever.semantic
+package ru.avhaliullin.whatever.semantic.function
+
+import ru.avhaliullin.whatever.semantic.tpe.{Tpe, TypeUtils}
 
 /**
   * @author avhaliullin

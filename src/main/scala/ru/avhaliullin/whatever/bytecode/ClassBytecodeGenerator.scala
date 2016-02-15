@@ -4,6 +4,7 @@ import org.apache.bcel.Constants
 import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.generic._
 import ru.avhaliullin.whatever.common.ClassName
+import ru.avhaliullin.whatever.semantic.tpe.{JavaTypeGen, Tpe}
 import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem, _}
 
 /**

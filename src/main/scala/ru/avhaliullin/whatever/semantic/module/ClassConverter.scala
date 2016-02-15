@@ -1,7 +1,9 @@
-package ru.avhaliullin.whatever.semantic
+package ru.avhaliullin.whatever.semantic.module
 
+import ru.avhaliullin.whatever.semantic.function.{FnAnalyzer, FnConverter, FnStore}
+import ru.avhaliullin.whatever.semantic.tpe.TypesStore
+import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem, StructAnalyzer, Structure, VarIdGen}
 import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode => syn}
-import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem}
 
 /**
   * @author avhaliullin

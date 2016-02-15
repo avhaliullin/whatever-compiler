@@ -4,7 +4,8 @@ import java.io.File
 
 import ru.avhaliullin.whatever.bytecode.{StructureGenerator, ClassBytecodeGenerator}
 import ru.avhaliullin.whatever.common.{PrettyPrint, ClassName}
-import ru.avhaliullin.whatever.semantic.{ClassConverter, TypesStore}
+import ru.avhaliullin.whatever.semantic.module.ClassConverter
+import ru.avhaliullin.whatever.semantic.tpe.TypesStore
 import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode, Parser}
 
 import scala.io.Source

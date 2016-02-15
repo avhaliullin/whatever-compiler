@@ -1,5 +1,7 @@
 package ru.avhaliullin.whatever.semantic
 
+import ru.avhaliullin.whatever.semantic.tpe.Tpe
+
 /**
   * @author avhaliullin
   */

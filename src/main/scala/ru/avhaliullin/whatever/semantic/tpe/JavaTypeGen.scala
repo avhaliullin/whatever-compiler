@@ -1,7 +1,8 @@
-package ru.avhaliullin.whatever.semantic
+package ru.avhaliullin.whatever.semantic.tpe
 
 import org.apache.bcel.generic.{ArrayType, ObjectType, Type}
 import ru.avhaliullin.whatever.common.ClassName
+import ru.avhaliullin.whatever.semantic.Structure
 
 /**
   * @author avhaliullin

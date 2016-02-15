@@ -1,4 +1,4 @@
-package ru.avhaliullin.whatever.semantic
+package ru.avhaliullin.whatever.semantic.tpe
 
 /**
   * @author avhaliullin

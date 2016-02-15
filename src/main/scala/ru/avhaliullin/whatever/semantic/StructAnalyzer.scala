@@ -1,5 +1,6 @@
 package ru.avhaliullin.whatever.semantic
 
+import ru.avhaliullin.whatever.semantic.tpe.{UserDefinedTypes, Tpe}
 import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode => syn}
 
 /**

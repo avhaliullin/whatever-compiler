@@ -1,5 +1,6 @@
-package ru.avhaliullin.whatever.semantic
+package ru.avhaliullin.whatever.semantic.function
 
+import ru.avhaliullin.whatever.semantic.tpe.TypesStore
 import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode => syn}
 
 /**

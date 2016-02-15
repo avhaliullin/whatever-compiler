@@ -1,6 +1,8 @@
 package ru.avhaliullin.whatever.semantic
 
 import ru.avhaliullin.whatever.common.PrettyPrint
+import ru.avhaliullin.whatever.semantic.function.FnSignature
+import ru.avhaliullin.whatever.semantic.tpe.Tpe
 
 /**
   * @author avhaliullin

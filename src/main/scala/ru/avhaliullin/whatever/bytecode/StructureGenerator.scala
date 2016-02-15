@@ -5,7 +5,8 @@ import org.apache.bcel.Constants._
 import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.generic._
 import ru.avhaliullin.whatever.common.ClassName
-import ru.avhaliullin.whatever.semantic.{JavaTypeGen, Structure, TypesStore}
+import ru.avhaliullin.whatever.semantic.tpe.{JavaTypeGen, TypesStore}
+import ru.avhaliullin.whatever.semantic.Structure
 
 /**
   * @author avhaliullin
