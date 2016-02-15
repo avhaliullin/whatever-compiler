@@ -15,8 +15,13 @@ import scala.io.Source
 object CompileTest {
 
   def main(args: Array[String]): Unit = {
-    val dir = new File(".")
-    dir.list(new FilenameFilter {
+    val examplesDir = new File("examples")
+    val srcDir = new File(examplesDir, "src")
+    val targetDir = new File(examplesDir, "target")
+    if (!targetDir.exists()) {
+      targetDir.mkdir()
+    }
+    srcDir.list(new FilenameFilter {
       override def accept(dir: File, name: String): Boolean = name.endsWith(".we")
     }).foreach {
       srcName =>
@@ -24,12 +29,11 @@ object CompileTest {
         val className = srcName.dropRight(".we".length)
         val p = new Parser
 
-        val pr = p.parse(Source.fromFile(srcName).bufferedReader())
+        val pr = p.parse(Source.fromFile(new File(srcDir, srcName)).bufferedReader())
 
         pr match {
           case p.Success(ast: List[SyntaxTreeNode.Definition], _) =>
             println(ast)
-            //            val typed = ASTTypeChecker.convert(ast)
             val cc = new ClassConverter
             val (typed, sts) = cc.convert(ast)
 
@@ -46,7 +50,7 @@ object CompileTest {
                 val stClass = sg.generateStruct(st)
                 stClass.dump(stClass.getClassName + ".class")
             }
-            clazz.dump(className + ".class")
+            clazz.dump(new File(targetDir, className + ".class"))
 
           case p.Failure(msg, pos) =>
             println("Error: " + msg + "\nAt " + pos.offset)
