@@ -111,7 +111,7 @@ object SemanticTreeNode {
     override def tpe: Tpe = sig.returnType
 
     def mute = {
-      if (valRet) {
+      if (!valRet) {
         this
       } else {
         Consume(this)
