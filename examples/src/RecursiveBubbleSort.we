@@ -1,0 +1,24 @@
+fn doSort(arr: Array[Int], i: Int, j: Int): Unit = {
+    if (j < arr.size() - 1 - i) {
+        if (arr.get(j) > arr.get(j + 1)) {
+            var x = arr.get(j)
+            arr.set(j, arr.get(j + 1))
+            arr.set(j + 1, x)
+        }
+        doSort(arr, i, j + 1)
+    } else {
+        if (i < arr.size() - 1) {
+            doSort(arr, i + 1, 0)
+        }
+    }
+}
+
+fn sort(arr: Array[Int]): Unit = {
+    doSort(arr, 0, 0)
+}
+
+fn main(args: Array[String]): Unit = {
+    var arr1 = new Array(9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+    sort(arr1)
+    echo(arr1)
+}
