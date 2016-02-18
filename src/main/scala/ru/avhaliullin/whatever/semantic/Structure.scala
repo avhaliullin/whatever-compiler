@@ -5,7 +5,7 @@ import ru.avhaliullin.whatever.semantic.tpe.Tpe
 /**
   * @author avhaliullin
   */
-case class Structure(name: String, fields: IndexedSeq[Structure.Field]){
+case class Structure(fullTpe: Tpe.UDT, fields: IndexedSeq[Structure.Field]){
   val fieldsMap = fields.map(f => f.name -> f).toMap
 }
 

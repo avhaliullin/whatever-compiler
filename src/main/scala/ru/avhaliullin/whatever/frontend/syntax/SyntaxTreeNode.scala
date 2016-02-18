@@ -1,4 +1,4 @@
-package ru.avhaliullin.whatever.syntax
+package ru.avhaliullin.whatever.frontend.syntax
 
 /**
   * @author avhaliullin
@@ -6,6 +6,8 @@ package ru.avhaliullin.whatever.syntax
 sealed trait SyntaxTreeNode {
   def isDefinition: Boolean = false
 }
+
+case class SyntaxTree(nodes: Seq[SyntaxTreeNode.Definition], imports: Seq[SyntaxTreeNode.Import])
 
 object SyntaxTreeNode {
 
@@ -48,7 +50,7 @@ object SyntaxTreeNode {
 
   case class IfBlock(cond: Expression, thenBlock: Seq[Expression], elseBlock: Seq[Expression]) extends Expression
 
-  case class FnCall(name: String, args: Seq[Expression]) extends Expression
+  case class FnCall(name: QualifiedName, args: Seq[Expression]) extends Expression
 
   case class FnDefinition(signature: FnDefinition.Signature, code: List[Expression]) extends SyntaxTreeNode with Definition
 
@@ -60,7 +62,7 @@ object SyntaxTreeNode {
 
   }
 
-  case class StructInstantiation(name: String, args: Seq[Argument]) extends Expression
+  case class StructInstantiation(name: QualifiedName, args: Seq[Argument]) extends Expression
 
   case class StructDefinition(name: String, fields: Seq[StructDefinition.Field]) extends SyntaxTreeNode with Definition
 
@@ -82,10 +84,30 @@ object SyntaxTreeNode {
 
   }
 
-  case class TypeExpression(name: String, args: Seq[TypeExpression]) extends SyntaxTreeNode
+  case class TypeExpression(name: QualifiedName, args: Seq[TypeExpression]) extends SyntaxTreeNode
 
   case class ArrayInstantiation(tpeOpt: Option[TypeExpression], elements: Seq[Expression]) extends Expression
 
   case class ForLoop(itVarName: String, iterable: Expression, body: Block) extends Expression
+
+  sealed trait QualifiedName {
+    def parts: Seq[String]
+
+    def relative: Boolean
+  }
+
+  object QualifiedName {
+
+    case class Relative(parts: Seq[String]) extends QualifiedName {
+      val relative = true
+    }
+
+    case class Absolute(parts: Seq[String]) extends QualifiedName {
+      val relative = false
+    }
+
+  }
+
+  case class Import(name: QualifiedName) extends SyntaxTreeNode
 
 }

@@ -1,6 +1,6 @@
-package ru.avhaliullin.whatever.syntax
+package ru.avhaliullin.whatever.frontend.syntax
 
-import ru.avhaliullin.whatever.syntax.SyntaxTreeNode._
+import ru.avhaliullin.whatever.frontend.syntax.SyntaxTreeNode._
 
 import scala.util.parsing.combinator.JavaTokenParsers
 
@@ -14,9 +14,9 @@ class Parser extends JavaTokenParsers {
 
   private val varName = literal
 
-  private def typeExpression: Parser[TypeExpression] = literal ~ opt("[" ~> rep1sep(typeExpression, ",") <~ "]") ^^ {
+  private def typeExpression: Parser[TypeExpression] = qualifiedName ~ opt("[" ~> rep1sep(typeExpression, ",") <~ "]") ^^ {
     case name ~ argsOpt =>
-      TypeExpression(name, argsOpt.getOrElse(Nil))
+      TypeExpression(name, argsOpt.getOrElse(Seq()))
   }
 
   private val fnName = literal
@@ -52,12 +52,12 @@ class Parser extends JavaTokenParsers {
 
   private def fArgsList = "(" ~> repsep(expr, ",") <~ ")"
 
-  private def fCall = fnName ~ fArgsList ^^ {
+  private def fCall = qualifiedName ~ fArgsList ^^ {
     case name ~ args =>
       FnCall(name, args)
   }
 
-  private def sInstantiation = literal ~ argList ^^ {
+  private def sInstantiation = qualifiedName ~ argList ^^ {
     case tName ~ args =>
       StructInstantiation(tName, args)
   }
@@ -193,7 +193,16 @@ class Parser extends JavaTokenParsers {
     case it ~ _ ~ src ~ body => ForLoop(it, src, body)
   }
 
-  private val parser: Parser[List[SyntaxTreeNode.Definition]] = rep(structDefinition | fnDefinition)
+  private def qualifiedName = "::".? ~ rep1sep(literal, "::") ^^ {
+    case Some(_) ~ parts => QualifiedName.Absolute(parts)
+    case None ~ parts => QualifiedName.Relative(parts)
+  }
+
+  private def importSt = "import" ~> qualifiedName ^^ Import
+
+  private val parser: Parser[SyntaxTree] = rep(importSt) ~ rep(structDefinition | fnDefinition) ^^ {
+    case imports ~ ast => SyntaxTree(ast, imports)
+  }
 
   def parse(r: java.io.Reader) = parseAll(parser, r)
 }

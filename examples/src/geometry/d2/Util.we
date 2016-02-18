@@ -1,0 +1,12 @@
+fn areaOf(p: Parallelogram): Int = {
+    var p1 = p.point1
+    var p2 = p.point2
+
+    var width = if (p1.x > p2.x) { p1.x - p2.x } else { p2.x - p1.x }
+    var height = if (p1.y > p2.y) { p1.y - p2.y } else { p2.y - p1.y }
+    height * width
+}
+
+fn square(bottomLeft: Point, side: Int): Parallelogram = {
+    new Parallelogram(bottomLeft, new Point(x := bottomLeft.x + side, y := bottomLeft.y + side))
+}

@@ -1,4 +1,4 @@
-package ru.avhaliullin.whatever.bytecode
+package ru.avhaliullin.whatever.backend
 
 import org.apache.bcel.Constants
 import org.apache.bcel.classfile.{InnerClass, InnerClasses}

@@ -1,0 +1,9 @@
+import d2::Parallelogram
+import d2::square
+
+fn main(args: Array[String]): Unit = {
+    var sqr = square(new ::geometry::d2::Point(0, 0), 5)
+    echo(sqr)
+    echo("has area")
+    echo(d2::areaOf(sqr))
+}

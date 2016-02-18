@@ -1,6 +1,8 @@
 package ru.avhaliullin.whatever.semantic.tpe
 
-import ru.avhaliullin.whatever.syntax.SyntaxTreeNode
+import ru.avhaliullin.whatever.frontend.syntax.SyntaxTreeNode
+import ru.avhaliullin.whatever.semantic.ImportsContext
+import ru.avhaliullin.whatever.semantic.module.ModuleName
 
 /**
   * @author avhaliullin
@@ -29,7 +31,7 @@ object Tpe {
     val name = "String"
   }
 
-  case class Struct(name: String) extends Tpe
+  case class UDT(name: String, module: ModuleName) extends Tpe
 
   case class Arr(elem: Tpe) extends Predefined {
     def name = "Array[" + elem.name + "]"
@@ -39,20 +41,23 @@ object Tpe {
     val name = "Any"
   }
 
-
-  def getTpe(tpeExpr: SyntaxTreeNode.TypeExpression, udts: UserDefinedTypes): Tpe = {
-    val res = tpeExpr.name match {
-      case "Int" => INT
-      case "Boolean" => BOOL
-      case "Unit" => UNIT
-      case "String" => STRING
-      case "Array" =>
-        if (tpeExpr.args.size != 1) {
-          throw new RuntimeException("Array type constructor takes one type parameter, found " + tpeExpr.args.size)
-        }
-        Arr(getTpe(tpeExpr.args.head, udts))
-      case other if udts.hasStruct(other) => Struct(other)
-      case other => throw new RuntimeException("Unknown type " + other)
+  def getTpe(tpeExpr: SyntaxTreeNode.TypeExpression, ic: ImportsContext): Tpe = {
+    val (name, module) = ic.resolveName(tpeExpr.name)
+    val res = if (module == ModuleName.Default.std) {
+      name match {
+        case "Int" => INT
+        case "Boolean" => BOOL
+        case "Unit" => UNIT
+        case "String" => STRING
+        case "Array" =>
+          if (tpeExpr.args.size != 1) {
+            throw new RuntimeException("Array type constructor takes one type parameter, found " + tpeExpr.args.size)
+          }
+          Arr(getTpe(tpeExpr.args.head, ic))
+        case _ => throw new RuntimeException("Unknown type: " + tpeExpr.name)
+      }
+    } else {
+      UDT(name, module)
     }
     if (tpeExpr.args.nonEmpty && !res.isInstanceOf[Arr]) {
       throw new RuntimeException(s"Type ${tpeExpr.name} doesn't take type parameters")

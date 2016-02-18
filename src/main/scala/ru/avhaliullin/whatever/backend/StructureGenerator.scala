@@ -1,24 +1,23 @@
-package ru.avhaliullin.whatever.bytecode
+package ru.avhaliullin.whatever.backend
 
 import org.apache.bcel.Constants
 import org.apache.bcel.Constants._
 import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.generic._
-import ru.avhaliullin.whatever.common.ClassName
-import ru.avhaliullin.whatever.semantic.tpe.{JavaTypeGen, TypesStore}
 import ru.avhaliullin.whatever.semantic.Structure
+import ru.avhaliullin.whatever.semantic.tpe.JavaTypeGen
 
 /**
   * @author avhaliullin
   */
-class StructureGenerator(className: ClassName, ts: TypesStore) {
-  val jtg = new JavaTypeGen(className)
-
+class StructureGenerator {
+  val jtg = JavaTypeGen
 
   def generateStruct(st: Structure): JavaClass = {
     def loadThis() = InstructionFactory.createLoad(jtg.toJavaType(st), 0)
 
-    val sClassName = className.name + "$" + st.name
+    val sJType = jtg.toJavaType(st)
+    val sClassName = sJType.getClassName
 
     val cg = new ClassGen(sClassName, "java.lang.Object", "<generated>", ACC_PUBLIC | ACC_SUPER, null)
     val cp = cg.getConstantPool
@@ -78,7 +77,7 @@ class StructureGenerator(className: ClassName, ts: TypesStore) {
 
       il.append(instFactory.createNew(sbClass))
       il.append(new DUP)
-      il.append(new PUSH(cp, st.name + "("))
+      il.append(new PUSH(cp, st.fullTpe.name + "("))
       il.append(
         instFactory.createInvoke(
           sbClass,
@@ -143,10 +142,8 @@ class StructureGenerator(className: ClassName, ts: TypesStore) {
       il.dispose()
     }
 
-    // InnerClasses annotation
-    val ic = InnerClassHelper.makeRecord(className.name, st.name, cp)
-    cg.addAttribute(InnerClassHelper.makeAttr(Seq(ic), cp))
-
     cg.getJavaClass
   }
 }
+
+object StructureGenerator extends StructureGenerator

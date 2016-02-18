@@ -1,0 +1,18 @@
+fn doRecursiveBubbleSort(arr: Array[Int], i: Int, j: Int): Unit = {
+    if (j < arr.size() - 1 - i) {
+        if (arr.get(j) > arr.get(j + 1)) {
+            var x = arr.get(j)
+            arr.set(j, arr.get(j + 1))
+            arr.set(j + 1, x)
+        }
+        doRecursiveBubbleSort(arr, i, j + 1)
+    } else {
+        if (i < arr.size() - 1) {
+            doRecursiveBubbleSort(arr, i + 1, 0)
+        }
+    }
+}
+
+fn recursiveBubbleSort(arr: Array[Int]): Unit = {
+    doRecursiveBubbleSort(arr, 0, 0)
+}

@@ -1,0 +1,3 @@
+struct Point(x: Int, y: Int)
+
+struct Parallelogram(point1: Point, point2: Point)

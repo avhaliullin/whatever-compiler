@@ -1,13 +1,42 @@
 package ru.avhaliullin.whatever.semantic.function
 
-import ru.avhaliullin.whatever.semantic.tpe.{Tpe, TypeUtils, TypesStore}
+import ru.avhaliullin.whatever.frontend.syntax.SyntaxTreeNode.{QualifiedName, TypeExpression}
+import ru.avhaliullin.whatever.frontend.syntax.{SyntaxTreeNode => syn}
+import ru.avhaliullin.whatever.semantic.module.{ModuleAPI, ModuleName}
+import ru.avhaliullin.whatever.semantic.tpe.{Tpe, TypeUtils}
 import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem, _}
-import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode => syn}
 
 /**
   * @author avhaliullin
   */
-class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
+class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varIdGen: VarIdGen) {
+  private def getModule(name: ModuleName): ModuleAPI = modules.getOrElse(name, throw new RuntimeException(s"Module $name not found"))
+
+  private def getStructure(udt: Tpe.UDT): Structure = {
+    val module = getModule(udt.module)
+    module.structs.getOrElse(udt.name, throw new RuntimeException(s"Structure ${udt.name} not found in module ${udt.module}"))
+  }
+
+  private def getStructure(te: syn.TypeExpression): Structure = getStructure(te.name)
+
+  private def getStructure(qn: QualifiedName): Structure = {
+    val (name, moduleName) = ic.resolveName(qn)
+    val module = getModule(moduleName)
+    module.structs.getOrElse(name, throw new RuntimeException(s"Structure $name not found in module $moduleName"))
+  }
+
+  private def getFunction(qn: QualifiedName, argTypes: Seq[Tpe]): FnSignature = {
+    val (name, moduleName) = ic.resolveName(qn)
+    val module = getModule(moduleName)
+    val result = module.functions.getOrElse(name, throw new RuntimeException(s"Function $name not found in module $moduleName"))
+    argTypes.zip(result.args.map(_.tpe)).foreach {
+      case (from, to) => TypeUtils.assertAssignable(from, to)
+    }
+    result
+  }
+
+  private def getType(te: TypeExpression): Tpe = Tpe.getTpe(te, ic)
+
   def convert(code: Seq[syn.Expression], sig: FnSignature): sem.FnDefinition = {
     val blockContext = BlockContext(
       sig.args.map(arg => arg.name -> VarInfo(varIdGen.methodArg(arg.name), arg.tpe, true)).toMap,
@@ -74,11 +103,11 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
           case syn.FieldAccess(name, stExpr) =>
             val (typedStExpr, newBc) = convertExpression(bc, stExpr)
             typedStExpr.tpe match {
-              case Tpe.Struct(sName) =>
-                val st = ts.getStruct(sName)
+              case udt: Tpe.UDT =>
+                val st = getStructure(udt)
                 val field = st.fieldsMap.getOrElse(name, throw new RuntimeException(s"Type $typedStExpr doesn't have member $name"))
                 TypeUtils.assertAssignable(typedValue.tpe, field.tpe)
-                sem.FieldAssignment(sem.FieldAccess(field, st, typedStExpr), typedValue, true) -> newBc
+                sem.FieldAssignment(sem.FieldAccess(field, st, typedStExpr), typedValue, read = true) -> newBc
               case other =>
                 throw new RuntimeException(s"Type $typedStExpr doesn't have member $name")
             }
@@ -90,13 +119,13 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
         if (bc.localVars.contains(name)) {
           throw new RuntimeException(s"Variable $name already defined in scope")
         }
-        val tpe = ts.getAny(tpeName)
+        val tpe = getType(tpeName)
         val varId = varIdGen.nextVar(name)
         sem.VarDefinition(varId, tpe) -> bc.define(VarInfo(varId, tpe, true))
 
       case syn.VarDefinitionWithAssignment(name, rawTpeOpt, rawExpr) =>
         val (typedExpr, newBc) = convertExpression(bc, rawExpr)
-        val tpeOpt = rawTpeOpt.map(ts.getAny)
+        val tpeOpt = rawTpeOpt.map(getType)
         tpeOpt.foreach(TypeUtils.assertAssignable(typedExpr.tpe, _))
         val tpe = tpeOpt.getOrElse(typedExpr.tpe)
         if (tpe == Tpe.ANY) {
@@ -114,8 +143,8 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
       case syn.FieldAccess(name, stExpr) =>
         val (typedStExpr, newBc) = convertExpression(bc, stExpr)
         typedStExpr.tpe match {
-          case Tpe.Struct(sName) =>
-            val st = ts.getStruct(sName)
+          case udt: Tpe.UDT =>
+            val st = getStructure(udt)
             val field = st.fieldsMap.getOrElse(name, throw new RuntimeException(s"Type $typedStExpr doesn't have member $name"))
             sem.FieldAccess(field, st, typedStExpr) -> newBc
           case other =>
@@ -128,7 +157,7 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
             val (typedArg, newBc) = convertExpression(bc, arg)
             (argsHead :+ typedArg, newBc)
         }
-        val fnSig = fs.find(name, typedArgs.map(_.tpe))
+        val fnSig = getFunction(name, typedArgs.map(_.tpe))
         sem.FnCall(fnSig, typedArgs) -> newBc
 
       case syn.IfBlock(cond, thenBlock, elseBlock) =>
@@ -143,7 +172,7 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
 
       case syn.StructInstantiation(name, args) =>
         import syn.Argument._
-        val struct = ts.getStruct(name)
+        val struct = getStructure(name)
         if (args.size != struct.fields.size) {
           throw new RuntimeException(s"Cannot instantiate structure $name - expected ${struct.fields.size} arguments, passed ${args.size}")
         }
@@ -172,14 +201,14 @@ class FnConverter(ts: TypesStore, fs: FnStore, varIdGen: VarIdGen) {
           case ((head, ctx), (it, f)) =>
             val (e, newCtx) = convertExpression(ctx, it)
             if (!TypeUtils.isAssignable(e.tpe, f.tpe)) {
-              throw new RuntimeException(s"Initializing field ${f.name} of struct ${struct.name} with incompatible type ${e.tpe} - expected ${f.tpe}")
+              throw new RuntimeException(s"Initializing field ${f.name} of struct ${struct.fullTpe} with incompatible type ${e.tpe} - expected ${f.tpe}")
             }
             (head :+ e, newCtx)
         }
         sem.StructureInstantiation(struct, typedExprs.toIndexedSeq, evalOrder) -> newCtx
 
       case syn.ArrayInstantiation(tpe, exprs) =>
-        val elemTpeOpt = tpe.map(ts.getAny)
+        val elemTpeOpt = tpe.map(getType)
         val (args, newBc) = exprs.foldLeft((Seq[sem.Expression](), bc)) {
           case ((resExprs, bc), it) =>
             val (res, newBc) = convertExpression(bc, it)

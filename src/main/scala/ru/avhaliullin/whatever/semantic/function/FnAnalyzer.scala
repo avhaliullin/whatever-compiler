@@ -1,39 +1,22 @@
 package ru.avhaliullin.whatever.semantic.function
 
-import ru.avhaliullin.whatever.semantic.tpe.TypesStore
-import ru.avhaliullin.whatever.syntax.{SyntaxTreeNode => syn}
+import ru.avhaliullin.whatever.frontend.syntax.{SyntaxTreeNode => syn}
+import ru.avhaliullin.whatever.semantic.ImportsContext
+import ru.avhaliullin.whatever.semantic.tpe.Tpe
 
 /**
   * @author avhaliullin
   */
-class FnAnalyzer(ts: TypesStore) {
-  def convertSignature(sig: syn.FnDefinition.Signature): FnSignature = {
+class FnAnalyzer {
+  def convertSignature(sig: syn.FnDefinition.Signature, ic: ImportsContext): FnSignature = {
     FnSignature(
       sig.name,
-      sig.args.map(arg => FnSignature.Arg(arg.name, ts.getAny(arg.tpe))),
-      ts.getAny(sig.returnT)
+      sig.args.map(arg => FnSignature.Arg(arg.name, Tpe.getTpe(arg.tpe, ic))),
+      Tpe.getTpe(sig.returnT, ic),
+      ic.module
     )
   }
 
-  def generateFnSigs(raw: Seq[syn.Definition]): (Map[String, Set[FnSignature]], Map[syn.FnDefinition, FnSignature]) = {
-    val name2Fns = raw.collect {
-      case rawDef@syn.FnDefinition(sig, _) => convertSignature(sig) -> rawDef
-    }.groupBy(_._1.name)
-
-    val name2FnsSet = name2Fns.mapValues {
-      overloaded =>
-        overloaded.foldLeft(Set[FnSignature]()) {
-          case (acc, (it, _)) =>
-            if (acc(it)) {
-              throw new RuntimeException(s"Duplicated method with signature $it")
-            } else {
-              acc + it
-            }
-        }
-    }
-
-    val rawDef2TypedDef = name2Fns.toSeq.flatMap(_._2).map(_.swap).toMap
-    (name2FnsSet, rawDef2TypedDef)
-  }
-
 }
+
+object FnAnalyzer extends FnAnalyzer

@@ -1,19 +1,18 @@
-package ru.avhaliullin.whatever.bytecode
+package ru.avhaliullin.whatever.backend
 
 import org.apache.bcel.Constants
 import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.generic._
-import ru.avhaliullin.whatever.common.ClassName
+import ru.avhaliullin.whatever.semantic.module.ModuleName
 import ru.avhaliullin.whatever.semantic.tpe.{JavaTypeGen, Tpe}
 import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem, _}
 
 /**
   * @author avhaliullin
   */
-class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
+class ClassBytecodeGenerator(module: ModuleName) {
 
-  private val structName2Struct = structs.map(st => st.name -> st).toMap
-  private val jtg = new JavaTypeGen(className)
+  private val jtg = JavaTypeGen
 
   private case class MethodContext(
                                     cg: ClassGen,
@@ -178,7 +177,7 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
         args.foreach(generateForNode(ctx, _))
         ctx.il.append(
           ctx.instF.createInvoke(
-            ctx.cg.getClassName,
+            jtg.moduleObject(sig.module).getClassName,
             sig.name,
             jtg.toJavaFnRetType(sig.returnType),
             sig.args.map(arg => jtg.toJavaType(arg.tpe)).toArray,
@@ -408,8 +407,9 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
     }
   }
 
-  def generateClass(ast: Seq[sem.FnDefinition]): JavaClass = {
-    val cg = new ClassGen(className.name, "java.lang.Object", "<generated>", Constants.ACC_PUBLIC | Constants.ACC_SUPER, null)
+  def generateClass(name: String, ast: Seq[sem.FnDefinition]): JavaClass = {
+    val className = jtg.moduleToJavaPackage(module) + "." + name
+    val cg = new ClassGen(className, "java.lang.Object", "<generated>", Constants.ACC_PUBLIC | Constants.ACC_SUPER, null)
     val cp = cg.getConstantPool
 
     val instFactory = new InstructionFactory(cg)
@@ -423,7 +423,7 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
         args.map(_._2).toArray,
         args.map(_._1).toArray,
         name,
-        className.name,
+        className,
         il,
         cp
       )
@@ -433,9 +433,6 @@ class ClassBytecodeGenerator(className: ClassName, structs: Seq[Structure]) {
       cg.addMethod(mg.getMethod)
       il.dispose()
     }
-
-    val ics = structs.map(s => InnerClassHelper.makeRecord(className.name, s.name, cp))
-    cg.addAttribute(InnerClassHelper.makeAttr(ics, cp))
 
     ast.foreach {
       case sem.FnDefinition(sig, code) =>

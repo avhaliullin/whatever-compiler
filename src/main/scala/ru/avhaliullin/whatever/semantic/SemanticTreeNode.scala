@@ -60,7 +60,7 @@ object SemanticTreeNode {
 
     def mute = expr.mute
 
-    def prettyExpr = PrettyPrint.Complex(s"FieldAccess(", ")", Seq(PrettyPrint.Literal(structure.name + "." + field.name), expr.pretty))
+    def prettyExpr = PrettyPrint.Complex(s"FieldAccess(", ")", Seq(PrettyPrint.Literal(structure.fullTpe + "." + field.name), expr.pretty))
   }
 
   case class FieldAssignment(field: FieldAccess, value: Expression, read: Boolean) extends Assignment {
@@ -90,17 +90,17 @@ object SemanticTreeNode {
   }
 
   case class StructureInstantiation(desc: Structure, args: IndexedSeq[Expression], evalOrder: Seq[Int]) extends Expression {
-    val tpe = Tpe.Struct(desc.name)
+    val tpe = desc.fullTpe
 
     def mute = {
       Block(evalOrder.map(args(_).mute), Tpe.UNIT)
     }
 
-    def prettyExpr = PrettyPrint.Complex(s"new ${desc.name}(", ")", args.map(_.pretty) :+ PrettyPrint.Literal("evaluation order: " + evalOrder.mkString(", ")))
+    def prettyExpr = PrettyPrint.Complex(s"new ${desc.fullTpe}(", ")", args.map(_.pretty) :+ PrettyPrint.Literal("evaluation order: " + evalOrder.mkString(", ")))
   }
 
   case class StructureDefinition(desc: Structure) extends Definition {
-    def pretty = PrettyPrint.Literal("struct " + desc.name + "(" + desc.fields.map(f => f.name + ": " + f.tpe).mkString(", ") + ")")
+    def pretty = PrettyPrint.Literal("struct " + desc.fullTpe + "(" + desc.fields.map(f => f.name + ": " + f.tpe).mkString(", ") + ")")
   }
 
   case class FnDefinition(sig: FnSignature, code: Seq[SemanticTreeNode.Expression]) extends Definition {
