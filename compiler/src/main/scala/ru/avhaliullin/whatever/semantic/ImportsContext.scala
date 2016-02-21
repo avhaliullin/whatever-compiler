@@ -1,7 +1,6 @@
 package ru.avhaliullin.whatever.semantic
 
-import ru.avhaliullin.whatever.frontend.syntax.SyntaxTreeNode
-import ru.avhaliullin.whatever.frontend.syntax.SyntaxTreeNode.QualifiedName
+import ru.avhaliullin.whatever.frontend.syntax.{Import, QualifiedName}
 import ru.avhaliullin.whatever.semantic.module.ModuleName
 
 /**
@@ -19,7 +18,7 @@ case class ImportsContext(module: ModuleName, importedNames: Map[String, ModuleN
     }
   }
 
-  def withImports(imports: Seq[SyntaxTreeNode.Import]): ImportsContext = {
+  def withImports(imports: Seq[Import]): ImportsContext = {
     val newImports = imports.foldLeft(importedNames) {
       (acc, it) =>
         val (name, moduleName) = it.name match {
@@ -48,7 +47,7 @@ object ImportsContext {
       )
     )
 
-  def fromImports(module: ModuleName, imports: Seq[SyntaxTreeNode.Import]): ImportsContext = {
+  def fromImports(module: ModuleName, imports: Seq[Import]): ImportsContext = {
     defaultContext(module).withImports(imports)
   }
 }

@@ -1,6 +1,6 @@
 package ru.avhaliullin.whatever.semantic.tpe
 
-import ru.avhaliullin.whatever.frontend.syntax.SyntaxTreeNode
+import ru.avhaliullin.whatever.frontend.syntax.{TypeExpression, Expression}
 import ru.avhaliullin.whatever.semantic.ImportsContext
 import ru.avhaliullin.whatever.semantic.module.ModuleName
 
@@ -41,7 +41,7 @@ object Tpe {
     val name = "Any"
   }
 
-  def getTpe(tpeExpr: SyntaxTreeNode.TypeExpression, ic: ImportsContext): Tpe = {
+  def getTpe(tpeExpr: TypeExpression, ic: ImportsContext): Tpe = {
     val (name, module) = ic.resolveName(tpeExpr.name)
     val res = if (module == ModuleName.Default.std) {
       name match {

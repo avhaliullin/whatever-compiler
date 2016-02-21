@@ -1,6 +1,6 @@
 package ru.avhaliullin.whatever.semantic
 
-import ru.avhaliullin.whatever.frontend.syntax.{SyntaxTreeNode => syn}
+import ru.avhaliullin.whatever.frontend.{syntax => syn}
 import ru.avhaliullin.whatever.semantic.tpe.Tpe
 
 /**

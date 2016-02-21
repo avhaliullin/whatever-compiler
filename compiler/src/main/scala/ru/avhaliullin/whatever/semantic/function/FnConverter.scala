@@ -1,7 +1,6 @@
 package ru.avhaliullin.whatever.semantic.function
 
-import ru.avhaliullin.whatever.frontend.syntax.SyntaxTreeNode.{QualifiedName, TypeExpression}
-import ru.avhaliullin.whatever.frontend.syntax.{SyntaxTreeNode => syn}
+import ru.avhaliullin.whatever.frontend.{syntax => syn}
 import ru.avhaliullin.whatever.semantic.module.{ModuleAPI, ModuleName}
 import ru.avhaliullin.whatever.semantic.tpe.{Tpe, TypeUtils}
 import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem, _}
@@ -19,13 +18,13 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
 
   private def getStructure(te: syn.TypeExpression): Structure = getStructure(te.name)
 
-  private def getStructure(qn: QualifiedName): Structure = {
+  private def getStructure(qn: syn.QualifiedName): Structure = {
     val (name, moduleName) = ic.resolveName(qn)
     val module = getModule(moduleName)
     module.structs.getOrElse(name, throw new RuntimeException(s"Structure $name not found in module $moduleName"))
   }
 
-  private def getFunction(qn: QualifiedName, argTypes: Seq[Tpe]): FnSignature = {
+  private def getFunction(qn: syn.QualifiedName, argTypes: Seq[Tpe]): FnSignature = {
     val (name, moduleName) = ic.resolveName(qn)
     val module = getModule(moduleName)
     val result = module.functions.getOrElse(name, throw new RuntimeException(s"Function $name not found in module $moduleName"))
@@ -48,9 +47,9 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
     }
   }
 
-  private def getType(te: TypeExpression): Tpe = Tpe.getTpe(te, ic)
+  private def getType(te: syn.TypeExpression): Tpe = Tpe.getTpe(te, ic)
 
-  def convertImpl(fn: syn.FnDefinition, forType: TypeExpression): sem.FnDefinition = {
+  def convertImpl(fn: syn.FnDefinition, forType: syn.TypeExpression): sem.FnDefinition = {
     val sig = FnAnalyzer.convertSignature(fn.signature, ic)
     val code = fn.code
 
@@ -83,16 +82,17 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
   }
 
   def convertExpression(bc: BlockContext, expr: syn.Expression): (sem.Expression, BlockContext) = {
+    import syn.{Expression => synExpr}
     expr match {
-      case block: syn.Block =>
+      case block: synExpr.Block =>
         val (expr, nestedCtx) = convertBlock(bc.nestedBlock(), block.exprs)
         expr -> bc.withBlockApplied(nestedCtx)
 
-      case syn.IntConst(value) => sem.IntConst(value) -> bc
-      case syn.BoolConst(value) => sem.BoolConst(value) -> bc
-      case syn.StringConst(value) => sem.StringConst(value) -> bc
+      case synExpr.IntConst(value) => sem.IntConst(value) -> bc
+      case synExpr.BoolConst(value) => sem.BoolConst(value) -> bc
+      case synExpr.StringConst(value) => sem.StringConst(value) -> bc
 
-      case syn.Variable(name) =>
+      case synExpr.Variable(name) =>
         bc.getVar(name) match {
           case None => throw new RuntimeException(s"Variable $name is not defined")
           case Some(varInfo) =>
@@ -102,27 +102,27 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
             sem.VarRead(varInfo.id, varInfo.tpe) -> bc
         }
 
-      case syn.UnaryOperator(arg, op) =>
+      case synExpr.UnaryOperator(arg, op) =>
         val (typedArg, newBc) = convertExpression(bc, arg)
         sem.UOperator(typedArg, Operator(typedArg.tpe, op)) -> newBc
 
-      case syn.BinaryOperator(l, r, op) =>
+      case synExpr.BinaryOperator(l, r, op) =>
         val (typedArg1, bc1) = convertExpression(bc, l)
         val (typedArg2, bc2) = convertExpression(bc1, r)
 
         sem.BOperator(typedArg1, typedArg2, Operator(typedArg1.tpe, typedArg2.tpe, op)) -> bc2
 
-      case syn.Echo(arg) =>
+      case synExpr.Echo(arg) =>
         val (typedArg, newBc) = convertExpression(bc, arg)
         sem.Echo(typedArg) -> newBc
 
-      case syn.Assignment(assignee, value) =>
+      case synExpr.Assignment(assignee, value) =>
         val (typedValue, newBc) = convertExpression(bc, value)
         if (typedValue.tpe == Tpe.ANY) {
           throw new RuntimeException("Assignment of 'Any' is not supported yet")
         }
         assignee match {
-          case syn.Variable(name) =>
+          case synExpr.Variable(name) =>
             bc.getVar(name) match {
               case None => throw new RuntimeException(s"Assignment to undefined variable $assignee")
               case Some(varInfo) =>
@@ -132,7 +132,7 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
                 TypeUtils.assertAssignable(typedValue.tpe, varInfo.tpe)
                 sem.VarAssignment(varInfo.id, typedValue, read = true) -> newBc.assign(varInfo.id)
             }
-          case syn.FieldAccess(name, stExpr) =>
+          case synExpr.FieldAccess(name, stExpr) =>
             val (typedStExpr, newBc) = convertExpression(bc, stExpr)
             typedStExpr.tpe match {
               case udt: Tpe.UDT =>
@@ -147,7 +147,7 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
             throw new RuntimeException(s"Left-side part of expression is not assignable: $other")
         }
 
-      case syn.VarDefinition(name, tpeName) =>
+      case synExpr.VarDefinition(name, tpeName) =>
         if (bc.localVars.contains(name)) {
           throw new RuntimeException(s"Variable $name already defined in scope")
         }
@@ -155,7 +155,7 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
         val varId = varIdGen.nextVar(name)
         sem.VarDefinition(varId, tpe) -> bc.define(VarInfo(varId, tpe, true))
 
-      case syn.VarDefinitionWithAssignment(name, rawTpeOpt, rawExpr) =>
+      case synExpr.VarDefinitionWithAssignment(name, rawTpeOpt, rawExpr) =>
         val (typedExpr, newBc) = convertExpression(bc, rawExpr)
         val tpeOpt = rawTpeOpt.map(getType)
         tpeOpt.foreach(TypeUtils.assertAssignable(typedExpr.tpe, _))
@@ -172,7 +172,7 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
           sem.VarAssignment(varId, typedExpr, true)
         ), tpe) -> newBc.define(VarInfo(varId, tpe, true)).assign(varId)
 
-      case syn.FieldAccess(name, stExpr) =>
+      case synExpr.FieldAccess(name, stExpr) =>
         val (typedStExpr, newBc) = convertExpression(bc, stExpr)
         typedStExpr.tpe match {
           case udt: Tpe.UDT =>
@@ -183,7 +183,7 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
             throw new RuntimeException(s"Type $typedStExpr doesn't have member $name")
         }
 
-      case syn.FnCall(name, args) =>
+      case synExpr.FnCall(name, args) =>
         val (typedArgs, newBc) = args.foldLeft((Vector[sem.Expression](), bc)) {
           case ((argsHead, bc), arg) =>
             val (typedArg, newBc) = convertExpression(bc, arg)
@@ -192,7 +192,7 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
         val fnSig = getFunction(name, typedArgs.map(_.tpe))
         sem.FnCall(fnSig, typedArgs) -> newBc
 
-      case syn.IfBlock(cond, thenBlock, elseBlock) =>
+      case synExpr.IfBlock(cond, thenBlock, elseBlock) =>
         val (condTyped, afterCondCtx) = convertExpression(bc, cond)
         if (condTyped.tpe != Tpe.BOOL) {
           throw new RuntimeException(s"If condition should be boolean type expression, found ${condTyped.tpe}")
@@ -202,13 +202,13 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
         val tpe = TypeUtils.getUpperBoundType(thenBlockTyped.tpe, elseBlockTyped.tpe)
         sem.IfExpr(condTyped, thenBlockTyped, elseBlockTyped, tpe) -> branch1Ctx.merge(branch2Ctx)
 
-      case syn.StructInstantiation(name, args) =>
-        import syn.Argument._
+      case synExpr.StructInstantiation(name, args) =>
+        import synExpr.Argument._
         val struct = getStructure(name)
         if (args.size != struct.fields.size) {
           throw new RuntimeException(s"Cannot instantiate structure $name - expected ${struct.fields.size} arguments, passed ${args.size}")
         }
-        val (byNameExprs, _) = args.zipWithIndex.foldLeft((IndexedSeq[syn.Argument.ByName](), false)) {
+        val (byNameExprs, _) = args.zipWithIndex.foldLeft((IndexedSeq[ByName](), false)) {
           case ((head, byName), (it, idx)) =>
             it match {
               case ByOrder(value) =>
@@ -239,7 +239,7 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
         }
         sem.StructureInstantiation(struct, typedExprs.toIndexedSeq, evalOrder) -> newCtx
 
-      case syn.ArrayInstantiation(tpe, exprs) =>
+      case synExpr.ArrayInstantiation(tpe, exprs) =>
         val elemTpeOpt = tpe.map(getType)
         val (args, newBc) = exprs.foldLeft((Seq[sem.Expression](), bc)) {
           case ((resExprs, bc), it) =>
@@ -261,7 +261,7 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
         }
         sem.ArrayInstantiation(elemTpe, args) -> newBc
 
-      case syn.MethodCall(ths, name, args) =>
+      case synExpr.MethodCall(ths, name, args) =>
         val (thsExpr, newBc) = convertExpression(bc, ths)
         val (argExprs, newBc2) = args.foldLeft((Seq[sem.Expression](), newBc)) {
           case ((exprsAcc, bc), e) =>
@@ -287,7 +287,7 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
         }
         resExpr -> newBc2
 
-      case syn.ForLoop(itVarName, iterable, body) =>
+      case synExpr.ForLoop(itVarName, iterable, body) =>
         val (iterableExpr, bc1) = convertExpression(bc, iterable)
         val itVarId = varIdGen.nextVar(itVarName)
         iterableExpr.tpe match {

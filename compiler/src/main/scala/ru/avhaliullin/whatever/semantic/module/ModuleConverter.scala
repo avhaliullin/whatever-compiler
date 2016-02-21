@@ -1,7 +1,8 @@
 package ru.avhaliullin.whatever.semantic.module
 
 import ru.avhaliullin.whatever.frontend.sources.{SourceTree, SourceTreeNode}
-import ru.avhaliullin.whatever.frontend.syntax.{SyntaxTree, SyntaxTreeNode => syn}
+import ru.avhaliullin.whatever.frontend.syntax.SyntaxTree
+import ru.avhaliullin.whatever.frontend.{syntax => syn}
 import ru.avhaliullin.whatever.semantic.function.{FnAnalyzer, FnConverter, FnSignature}
 import ru.avhaliullin.whatever.semantic.{ImportsContext, SemanticTreeNode => sem, StructAnalyzer, VarIdGen}
 

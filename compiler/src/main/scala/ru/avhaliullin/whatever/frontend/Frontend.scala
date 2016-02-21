@@ -4,7 +4,7 @@ import java.io.File
 
 import ru.avhaliullin.whatever.common.CompilationException
 import ru.avhaliullin.whatever.frontend.sources.{SourceTree, SourceTreeNode}
-import ru.avhaliullin.whatever.frontend.syntax.{Parser, SyntaxTree, SyntaxTreeNode}
+import ru.avhaliullin.whatever.frontend.syntax.{Parser, SyntaxTree, Expression}
 
 import scala.io.Source
 

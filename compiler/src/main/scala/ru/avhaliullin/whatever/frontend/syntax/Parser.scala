@@ -1,6 +1,6 @@
 package ru.avhaliullin.whatever.frontend.syntax
 
-import ru.avhaliullin.whatever.frontend.syntax.SyntaxTreeNode._
+import ru.avhaliullin.whatever.frontend.syntax.Expression._
 
 import scala.util.parsing.combinator.JavaTokenParsers
 
