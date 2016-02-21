@@ -55,7 +55,7 @@ class JavaTypeGen {
     tpe match {
       case Tpe.BOOL => Type.BOOLEAN
       case Tpe.INT => Type.INT
-      case Tpe.UNIT => if (fnRetType) Type.VOID else Type.getType(classOf[Void])
+      case Tpe.UNIT => if (fnRetType) Type.VOID else Type.getType(classOf[whatever.Unit])
       case Tpe.STRING => Type.STRING
 
       case udt: Tpe.UDT => udtToJavaType(udt)

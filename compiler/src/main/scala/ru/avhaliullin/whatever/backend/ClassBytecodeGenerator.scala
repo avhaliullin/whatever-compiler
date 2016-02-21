@@ -410,7 +410,8 @@ class ClassBytecodeGenerator(module: ModuleName, name: String) {
         }
     }
     if (returnUnit && !node.valRet) {
-      ctx.il.append(InstructionConstants.ACONST_NULL)
+      val unitType = new ObjectType(jtg.moduleToJavaPackage(ModuleName.Default.std) + ".Unit")
+      ctx.il.append(ctx.instF.createGetStatic(unitType.getClassName, "INSTANCE", unitType))
     }
   }
 

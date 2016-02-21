@@ -29,7 +29,7 @@ object ModuleName {
   }
 
   object Default {
-    val std = ROOT.sub("std")
+    val std = ROOT.sub("whatever")
   }
 
 }

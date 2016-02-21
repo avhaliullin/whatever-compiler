@@ -19,7 +19,9 @@ object ModulesCompiler {
     moduleClass.dump(new File(dir, moduleClassName + ".class"))
     impl.structs.foreach {
       st =>
-        StructureGenerator.generateStruct(st, impl.structImpls.getOrElse(st.fullTpe.name, Nil)).dump(new File(dir, st.fullTpe.name))
+        StructureGenerator
+          .generateStruct(st, impl.structImpls.getOrElse(st.fullTpe.name, Nil))
+          .dump(new File(dir, st.fullTpe.name + ".class"))
     }
     module.submodules.foreach {
       sub =>

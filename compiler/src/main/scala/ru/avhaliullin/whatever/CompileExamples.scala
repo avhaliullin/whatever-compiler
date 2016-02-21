@@ -1,7 +1,6 @@
 package ru.avhaliullin.whatever
 
-import java.io.{FileOutputStream, File}
-import java.util.jar.JarOutputStream
+import java.io.File
 
 import ru.avhaliullin.whatever.backend.ModulesCompiler
 import ru.avhaliullin.whatever.frontend.Frontend
@@ -25,11 +24,12 @@ object CompileExamples {
     val modulesOfSources = ModuleConverter.mapSourcesToModules(srcTree)
     val moduleApis = ModuleConverter.makeModulesAPI(modulesOfSources)
     val moduleASTs = ModuleConverter.makeModules(moduleApis, modulesOfSources)
-    val fOut = new FileOutputStream(jarFile)
-    val jarOut = new JarOutputStream(fOut)
-
-    ModulesCompiler.compileTo(moduleASTs, jarOut)
-    jarOut.close()
-    fOut.close()
+    ModulesCompiler.compileTo(moduleASTs, classesDir)
+    //    val fOut = new FileOutputStream(jarFile)
+    //    val jarOut = new JarOutputStream(fOut)
+    //
+    //    ModulesCompiler.compileTo(moduleASTs, jarOut)
+    //    jarOut.close()
+    //    fOut.close()
   }
 }
