@@ -10,9 +10,9 @@ import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem, _}
 /**
   * @author avhaliullin
   */
-class ClassBytecodeGenerator(module: ModuleName) {
-
+class ClassBytecodeGenerator(module: ModuleName, name: String) {
   private val jtg = JavaTypeGen
+  private val className = jtg.moduleToJavaPackage(module) + "." + name
 
   private case class MethodContext(
                                     cg: ClassGen,
@@ -76,7 +76,7 @@ class ClassBytecodeGenerator(module: ModuleName) {
     }
   }
 
-  def generateBranching(ctx: MethodContext, bInst: BranchInstruction, onPassOpt: Option[InstructionList], onBranchOpt: Option[InstructionList]): Unit = {
+  private def generateBranching(ctx: MethodContext, bInst: BranchInstruction, onPassOpt: Option[InstructionList], onBranchOpt: Option[InstructionList]): Unit = {
     (onPassOpt, onBranchOpt) match {
       case (None, None) =>
         ctx.il.append(bInst)
@@ -110,13 +110,13 @@ class ClassBytecodeGenerator(module: ModuleName) {
     }
   }
 
-  def generateBoolExpr(ctx: MethodContext, arg1: sem.Expression, arg2: sem.Expression, bInst: BranchInstruction): Unit = {
+  private def generateBoolExpr(ctx: MethodContext, arg1: sem.Expression, arg2: sem.Expression, bInst: BranchInstruction): Unit = {
     generateForNode(ctx, arg1)
     generateForNode(ctx, arg2)
     generateBranching(ctx, bInst, Some(new InstructionList(ctx.PUSH(0))), Some(new InstructionList(ctx.PUSH(1))))
   }
 
-  def generateIf(ctx: MethodContext, cond: sem.Expression, thenIl: Option[InstructionList], elseIl: Option[InstructionList]): Unit = {
+  private def generateIf(ctx: MethodContext, cond: sem.Expression, thenIl: Option[InstructionList], elseIl: Option[InstructionList]): Unit = {
     cond match {
       case BranchInliner(inliner) =>
         inliner.inline(ctx, thenIl, elseIl)
@@ -128,7 +128,7 @@ class ClassBytecodeGenerator(module: ModuleName) {
 
   }
 
-  def generateForNode(ctx: MethodContext, node: sem.Expression, returnUnit: Boolean = true): Unit = {
+  private def generateForNode(ctx: MethodContext, node: sem.Expression, returnUnit: Boolean = true): Unit = {
     import sem._
 
     def trivialBinOp(arg1: Expression, arg2: Expression, inst: Instruction): Unit = {
@@ -182,6 +182,19 @@ class ClassBytecodeGenerator(module: ModuleName) {
             jtg.toJavaFnRetType(sig.returnType),
             sig.args.map(arg => jtg.toJavaType(arg.tpe)).toArray,
             Constants.INVOKESTATIC
+          )
+        )
+
+      case StructMethodCall(st, fn, calledOn, args) =>
+        generateForNode(ctx, calledOn)
+        args.foreach(generateForNode(ctx, _))
+        ctx.il.append(
+          ctx.instF.createInvoke(
+            jtg.toJavaType(st).getClassName,
+            fn.name,
+            jtg.toJavaFnRetType(fn.returnType),
+            fn.args.map(arg => jtg.toJavaType(arg.tpe)).toArray,
+            Constants.INVOKEVIRTUAL
           )
         )
 
@@ -401,42 +414,50 @@ class ClassBytecodeGenerator(module: ModuleName) {
     }
   }
 
-  def generateBlock(ctx: MethodContext, code: Seq[sem.Expression]): Unit = {
+  private def generateBlock(ctx: MethodContext, code: Seq[sem.Expression]): Unit = {
     if (code.nonEmpty) {
       code.foreach(generateForNode(ctx, _, returnUnit = false))
     }
   }
 
-  def generateClass(name: String, ast: Seq[sem.FnDefinition]): JavaClass = {
-    val className = jtg.moduleToJavaPackage(module) + "." + name
+  def generateMethod(cg: ClassGen, cp: ConstantPoolGen, instF: InstructionFactory, access: AccessModifiers,
+                     fnDef: sem.FnDefinition): Unit = {
+    generateMethod(cg, cp, instF, access, fnDef.code, fnDef.sig.name,
+      fnDef.sig.args.map(arg => (arg.name, jtg.toJavaType(arg.tpe))),
+      jtg.toJavaFnRetType(fnDef.sig.returnType))
+  }
+
+  private def generateMethod(cg: ClassGen, cp: ConstantPoolGen, instF: InstructionFactory, access: AccessModifiers,
+                             code: Seq[sem.Expression], name: String, args: Seq[(String, Type)], retType: Type): Unit = {
+    val il = new InstructionList()
+
+    val mg = new MethodGen(
+      access.flags,
+      retType,
+      args.map(_._2).toArray,
+      args.map(_._1).toArray,
+      name,
+      className,
+      il,
+      cp
+    )
+    generateBlock(MethodContext(cg, cp, instF, mg, il), code)
+    il.append(InstructionFactory.createReturn(retType))
+    mg.setMaxStack()
+    cg.addMethod(mg.getMethod)
+    il.dispose()
+  }
+
+  def generateClass(ast: Seq[sem.FnDefinition]): JavaClass = {
     val cg = new ClassGen(className, "java.lang.Object", "<generated>", Constants.ACC_PUBLIC | Constants.ACC_SUPER, null)
     val cp = cg.getConstantPool
 
     val instFactory = new InstructionFactory(cg)
 
-    def generateMethod(code: Seq[sem.Expression], name: String, args: Seq[(String, Type)], retType: Type): Unit = {
-      val il = new InstructionList()
-
-      val mg = new MethodGen(
-        Constants.ACC_STATIC | Constants.ACC_PUBLIC,
-        retType,
-        args.map(_._2).toArray,
-        args.map(_._1).toArray,
-        name,
-        className,
-        il,
-        cp
-      )
-      generateBlock(MethodContext(cg, cp, instFactory, mg, il), code)
-      il.append(InstructionFactory.createReturn(retType))
-      mg.setMaxStack()
-      cg.addMethod(mg.getMethod)
-      il.dispose()
-    }
 
     ast.foreach {
-      case sem.FnDefinition(sig, code) =>
-        generateMethod(code, sig.name, sig.args.map(arg => (arg.name, jtg.toJavaType(arg.tpe))), jtg.toJavaFnRetType(sig.returnType))
+      case fnDef: sem.FnDefinition =>
+        generateMethod(cg, cp, instFactory, AccessModifiers(public = true, static = true), fnDef)
     }
 
     cg.getJavaClass

@@ -200,7 +200,11 @@ class Parser extends JavaTokenParsers {
 
   private def importSt = "import" ~> qualifiedName ^^ Import
 
-  private val parser: Parser[SyntaxTree] = rep(importSt) ~ rep(structDefinition | fnDefinition) ^^ {
+  private def structImpl = "impl" ~> typeExpression ~ ("{" ~> rep(fnDefinition) <~ "}") ^^ {
+    case typeExpr ~ fns => StructImplementation(typeExpr, fns)
+  }
+
+  private val parser: Parser[SyntaxTree] = rep(importSt) ~ rep(structImpl | structDefinition | fnDefinition) ^^ {
     case imports ~ ast => SyntaxTree(ast, imports)
   }
 

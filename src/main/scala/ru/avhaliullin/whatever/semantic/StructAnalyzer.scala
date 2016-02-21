@@ -14,7 +14,8 @@ class StructAnalyzer {
         field =>
           val fieldTpe = Tpe.getTpe(field.tpe, ic)
           Structure.Field(field.name, fieldTpe)
-      }.toIndexedSeq
+      }.toIndexedSeq,
+      Map()
     )
   }
 

@@ -123,6 +123,19 @@ object SemanticTreeNode {
     def prettyExpr = PrettyPrint.Complex("FnCall(", ")", PrettyPrint.Literal(sig.name) +: args.map(_.pretty))
   }
 
+  sealed trait MethodCall extends Expression
+
+  case class StructMethodCall(struct: Structure, method: FnSignature, calledOn: Expression, args: Seq[Expression]) extends MethodCall {
+    override def tpe: Tpe = method.returnType
+
+    override def prettyExpr: PrettyPrint = PrettyPrint.Complex("Method(", ")",
+      calledOn.pretty.prepend("called on: ") +: args.map(_.pretty))
+
+    override def valRet = tpe != Tpe.UNIT
+
+    override def mute: Expression = if (valRet) Consume(this) else this
+  }
+
   case class Echo(expr: Expression) extends Statement {
     def prettyExpr = PrettyPrint.Complex("Echo(", ")", Seq(expr.pretty))
   }

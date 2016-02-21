@@ -1,3 +1,9 @@
 struct Point(x: Int, y: Int)
 
-struct Parallelogram(point1: Point, point2: Point)
+struct Parallelogram(bottomLeft: Point, width: Int, height: Int)
+
+impl Parallelogram {
+    fn topRight() : Point = {
+        new Point(this.bottomLeft.x + this.width, this.bottomLeft.y + this.height)
+    }
+}

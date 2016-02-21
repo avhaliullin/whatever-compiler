@@ -10,7 +10,7 @@ import ru.avhaliullin.whatever.semantic.module.ModuleConverter
 /**
   * @author avhaliullin
   */
-object CompileTest {
+object CompileExamples {
 
   def main(args: Array[String]): Unit = {
     val examplesDir = new File("examples")
@@ -22,8 +22,9 @@ object CompileTest {
       targetDir.mkdir()
     }
     val srcTree = Frontend.parseSources(srcDir)
-    val moduleApis = ModuleConverter.makeModulesAPI(srcTree)
-    val moduleASTs = ModuleConverter.makeModules(moduleApis)
+    val modulesOfSources = ModuleConverter.mapSourcesToModules(srcTree)
+    val moduleApis = ModuleConverter.makeModulesAPI(modulesOfSources)
+    val moduleASTs = ModuleConverter.makeModules(moduleApis, modulesOfSources)
     val fOut = new FileOutputStream(jarFile)
     val jarOut = new JarOutputStream(fOut)
 

@@ -4,8 +4,8 @@ import org.apache.bcel.Constants
 import org.apache.bcel.Constants._
 import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.generic._
-import ru.avhaliullin.whatever.semantic.Structure
 import ru.avhaliullin.whatever.semantic.tpe.JavaTypeGen
+import ru.avhaliullin.whatever.semantic.{SemanticTreeNode => sem, Structure}
 
 /**
   * @author avhaliullin
@@ -13,11 +13,13 @@ import ru.avhaliullin.whatever.semantic.tpe.JavaTypeGen
 class StructureGenerator {
   val jtg = JavaTypeGen
 
-  def generateStruct(st: Structure): JavaClass = {
+  def generateStruct(st: Structure, methods: Seq[sem.FnDefinition]): JavaClass = {
     def loadThis() = InstructionFactory.createLoad(jtg.toJavaType(st), 0)
 
     val sJType = jtg.toJavaType(st)
     val sClassName = sJType.getClassName
+
+    val codeGen = new ClassBytecodeGenerator(st.fullTpe.module, sClassName)
 
     val cg = new ClassGen(sClassName, "java.lang.Object", "<generated>", ACC_PUBLIC | ACC_SUPER, null)
     val cp = cg.getConstantPool
@@ -140,6 +142,11 @@ class StructureGenerator {
       mg.setMaxStack()
       cg.addMethod(mg.getMethod)
       il.dispose()
+    }
+
+    methods.foreach {
+      method =>
+        codeGen.generateMethod(cg, cp, instFactory, AccessModifiers(public = true, static = false, fnl = true), method)
     }
 
     cg.getJavaClass

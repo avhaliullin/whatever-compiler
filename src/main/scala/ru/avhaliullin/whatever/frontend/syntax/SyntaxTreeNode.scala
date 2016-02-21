@@ -84,6 +84,8 @@ object SyntaxTreeNode {
 
   }
 
+  case class StructImplementation(structType: TypeExpression, methods: Seq[FnDefinition]) extends Definition
+
   case class TypeExpression(name: QualifiedName, args: Seq[TypeExpression]) extends SyntaxTreeNode
 
   case class ArrayInstantiation(tpeOpt: Option[TypeExpression], elements: Seq[Expression]) extends Expression

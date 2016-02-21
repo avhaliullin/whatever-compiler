@@ -29,15 +29,47 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
     val (name, moduleName) = ic.resolveName(qn)
     val module = getModule(moduleName)
     val result = module.functions.getOrElse(name, throw new RuntimeException(s"Function $name not found in module $moduleName"))
-    argTypes.zip(result.args.map(_.tpe)).foreach {
+    assertArgs(argTypes, result)
+    result
+  }
+
+  private def getStructMethod(st: Structure, name: String, argTypes: Seq[Tpe]): FnSignature = {
+    val fn = getModule(st.fullTpe.module)
+      .structs(st.fullTpe.name)
+      .methods
+      .getOrElse(name, throw new RuntimeException(s"Method $name with args $argTypes not defined for type ${st.fullTpe}"))
+    assertArgs(argTypes, fn)
+    fn
+  }
+
+  private def assertArgs(args: Seq[Tpe], fn: FnSignature): Unit = {
+    args.zip(fn.args.map(_.tpe)).foreach {
       case (from, to) => TypeUtils.assertAssignable(from, to)
     }
-    result
   }
 
   private def getType(te: TypeExpression): Tpe = Tpe.getTpe(te, ic)
 
-  def convert(code: Seq[syn.Expression], sig: FnSignature): sem.FnDefinition = {
+  def convertImpl(fn: syn.FnDefinition, forType: TypeExpression): sem.FnDefinition = {
+    val sig = FnAnalyzer.convertSignature(fn.signature, ic)
+    val code = fn.code
+
+    val args = FnSignature.Arg("this", getType(forType)) +: sig.args
+    val blockContext = BlockContext(
+      args.map(arg => arg.name -> VarInfo(varIdGen.methodArg(arg.name), arg.tpe, true)).toMap,
+      Map(),
+      args.map(arg => varIdGen.methodArg(arg.name)).toSet
+    )
+
+    val (typedBlock, bc) = convertBlock(blockContext, code)
+    TypeUtils.assertAssignable(typedBlock.tpe, sig.returnType)
+    sem.FnDefinition(sig, typedBlock.code)
+  }
+
+  def convert(fn: syn.FnDefinition): sem.FnDefinition = {
+    val sig = FnAnalyzer.convertSignature(fn.signature, ic)
+    val code = fn.code
+
     val blockContext = BlockContext(
       sig.args.map(arg => arg.name -> VarInfo(varIdGen.methodArg(arg.name), arg.tpe, true)).toMap,
       Map(),
@@ -246,6 +278,10 @@ class FnConverter(ic: ImportsContext, modules: Map[ModuleName, ModuleAPI], varId
               case _ =>
                 throw new RuntimeException(s"Not found method $name with args ${argExprs.map(_.tpe).mkString(",")} of type $arrTpe")
             }
+          case udt: Tpe.UDT =>
+            val st = getStructure(udt)
+            val method = getStructMethod(st, name, argExprs.map(_.tpe))
+            sem.StructMethodCall(st, method, thsExpr, argExprs)
           case other =>
             throw new RuntimeException(s"Type $other doesn't have method $name")
         }

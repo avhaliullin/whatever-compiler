@@ -14,12 +14,12 @@ object ModulesCompiler {
 
   private def compileModule(dir: File, module: ModulesTree[ModuleImpl]): Unit = {
     val impl = module.payload
-    val classGen = new ClassBytecodeGenerator(module.name)
-    val moduleClass = classGen.generateClass(moduleClassName, impl.fns)
+    val classGen = new ClassBytecodeGenerator(module.name, moduleClassName)
+    val moduleClass = classGen.generateClass(impl.fns)
     moduleClass.dump(new File(dir, moduleClassName + ".class"))
     impl.structs.foreach {
       st =>
-        StructureGenerator.generateStruct(st).dump(new File(dir, st.fullTpe.name))
+        StructureGenerator.generateStruct(st, impl.structImpls.getOrElse(st.fullTpe.name, Nil)).dump(new File(dir, st.fullTpe.name))
     }
     module.submodules.foreach {
       sub =>
@@ -45,8 +45,8 @@ object ModulesCompiler {
     val moduleEntryName = JavaTypeGen.moduleToJavaPackage(module.name).replace('.', '/') + "/"
     val impl = module.payload
     if (impl.fns.nonEmpty) {
-      val classGen = new ClassBytecodeGenerator(module.name)
-      val moduleClass = classGen.generateClass(moduleClassName, impl.fns)
+      val classGen = new ClassBytecodeGenerator(module.name, moduleClassName)
+      val moduleClass = classGen.generateClass(impl.fns)
       os.putNextEntry(new JarEntry(moduleEntryName + moduleClassName + ".class"))
       os.write(moduleClass.getBytes)
       os.closeEntry()
@@ -55,7 +55,7 @@ object ModulesCompiler {
       st =>
         val stName = st.fullTpe.name
         os.putNextEntry(new JarEntry(moduleEntryName + stName + ".class"))
-        val jClass = StructureGenerator.generateStruct(st)
+        val jClass = StructureGenerator.generateStruct(st, impl.structImpls.getOrElse(st.fullTpe.name, Nil))
         os.write(jClass.getBytes)
         os.closeEntry()
     }
